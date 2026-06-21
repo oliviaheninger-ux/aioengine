@@ -1,0 +1,523 @@
+This file is a merged representation of the entire codebase, combined into a single document by Repomix.
+
+<file_summary>
+This section contains a summary of this file.
+
+<purpose>
+This file contains a packed representation of the entire repository's contents.
+It is designed to be easily consumable by AI systems for analysis, code review,
+or other automated processes.
+</purpose>
+
+<file_format>
+The content is organized as follows:
+1. This summary section
+2. Repository information
+3. Directory structure
+4. Repository files (if enabled)
+5. Multiple file entries, each consisting of:
+  - File path as an attribute
+  - Full contents of the file
+</file_format>
+
+<usage_guidelines>
+- This file should be treated as read-only. Any changes should be made to the
+  original repository files, not this packed version.
+- When processing this file, use the file path to distinguish
+  between different files in the repository.
+- Be aware that this file may contain sensitive information. Handle it with
+  the same level of security as you would the original repository.
+</usage_guidelines>
+
+<notes>
+- Some files may have been excluded based on .gitignore rules and Repomix's configuration
+- Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
+- Files matching patterns in .gitignore are excluded
+- Files matching default ignore patterns are excluded
+- Files are sorted by Git change count (files with more changes are at the bottom)
+</notes>
+
+</file_summary>
+
+<directory_structure>
+.gitignore
+next-env.d.ts
+package.json
+postcss.config.js
+src/app/ai-context/route.ts
+src/app/api/audit/route.ts
+src/app/api/webhooks/stripe/route.ts
+src/app/globals.css
+src/app/layout.tsx
+src/app/llms.txt/route.ts
+src/app/page.tsx
+src/app/robots.txt/route.ts
+src/components/Logo.tsx
+src/lib/stripe.ts
+src/siteconfig.ts
+tailwind.config.js
+tsconfig.json
+</directory_structure>
+
+<files>
+This section contains the contents of the repository's files.
+
+<file path="postcss.config.js">
+module.exports = {
+  plugins: {
+    '@tailwindcss/postcss': {}, // <-- We just updated this line
+    autoprefixer: {},
+  },
+}
+</file>
+
+<file path="src/app/api/audit/route.ts">
+import { NextResponse } from 'next/server';
+import * as cheerio from 'cheerio';
+
+export async function POST(req: Request) {
+  try {
+    const { url } = await req.json();
+    const baseUrl = url.startsWith('http') ? url : `https://${url}`;
+
+    // 1. Check for standard AI/Crawler files
+    const checkFile = async (path: string) => {
+      try {
+        const res = await fetch(`${baseUrl}${path}`, { 
+          method: 'HEAD',
+          headers: { 'User-Agent': 'aioengine-diagnostic-bot' }
+        });
+        return res.ok;
+      } catch {
+        return false;
+      }
+    };
+
+    const [hasRobots, hasLlms] = await Promise.all([
+      checkFile('/robots.txt'),
+      checkFile('/llms.txt')
+    ]);
+
+    // 2. Scrape the homepage for LocalBusiness/Organization Schema
+    let hasSchema = false;
+    try {
+      const htmlRes = await fetch(baseUrl, { 
+        headers: { 'User-Agent': 'aioengine-diagnostic-bot' } 
+      });
+      if (htmlRes.ok) {
+        const html = await htmlRes.text();
+        const $ = cheerio.load(html);
+        
+        $('script[type="application/ld+json"]').each((_, el) => {
+          const content = $(el).html();
+          if (content && (content.includes('LocalBusiness') || content.includes('Organization'))) {
+            hasSchema = true;
+          }
+        });
+      }
+    } catch (e) {
+      console.log("Schema scrape failed, continuing.");
+    }
+
+    // 3. Calculate AI-Ready Score
+    let score = 0;
+    if (hasRobots) score += 20;
+    if (hasLlms) score += 40;
+    if (hasSchema) score += 40;
+
+    return NextResponse.json({ 
+      success: true, 
+      data: { 
+        score,
+        robotsTxt: hasRobots,
+        llmsTxt: hasLlms,
+        schema: hasSchema
+      } 
+    });
+  } catch (error) {
+    return NextResponse.json({ success: false, error: 'Audit failed' }, { status: 500 });
+  }
+}
+</file>
+
+<file path="src/app/globals.css">
+@import "tailwindcss";
+</file>
+
+<file path="src/components/Logo.tsx">
+// src/components/Logo.tsx
+export function Logo({ className = "w-8 h-8" }: { className?: string }) {
+  return (
+    <svg 
+      viewBox="0 0 100 100" 
+      fill="none" 
+      xmlns="http://www.w3.org/2000/svg"
+      className={className}
+    >
+      {/* Node 1 */}
+      <circle cx="20" cy="50" r="12" className="fill-emerald-500" />
+      {/* Node 2 (Center) */}
+      <circle cx="50" cy="50" r="16" className="fill-emerald-500" />
+      {/* Node 3 */}
+      <circle cx="80" cy="50" r="12" className="fill-emerald-500" />
+      {/* Connections */}
+      <line x1="32" y1="50" x2="38" y2="50" stroke="currentColor" strokeWidth="6" className="stroke-emerald-500" />
+      <line x1="62" y1="50" x2="68" y2="50" stroke="currentColor" strokeWidth="6" className="stroke-emerald-500" />
+    </svg>
+  );
+}
+</file>
+
+<file path="src/lib/stripe.ts">
+import Stripe from 'stripe';
+
+export const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
+  apiVersion: '2026-05-27.dahlia', 
+});
+</file>
+
+<file path="src/siteconfig.ts">
+export type SiteConfig = typeof siteConfig;
+
+export const siteConfig = {
+  name: "aioengine",
+  description: "An AI optimization engine designed to make your web presence discoverable, readable, and perfectly indexed by LLMs and AI crawlers.",
+  url: "https://aioengine.dev",
+  contact: {
+    email: "hello@aioengine.dev",
+    phone: "555-555-5555",
+  },
+  location: {
+    street: "123 Business Lane",
+    city: "Magrath",
+    region: "Alberta",
+    country: "CA",
+    postalCode: "T0K 1J0",
+  },
+  services: [
+    "AI-friendly website auditing",
+    "LLM context optimization",
+    "Robots.txt and sitemap architecture",
+    "Web development for AI searchability"
+  ],
+  hours: "Mo-Fr 09:00-17:00",
+  version: "1.0.0"
+};
+</file>
+
+<file path="tailwind.config.js">
+/** @type {import('tailwindcss').Config} */
+module.exports = {
+  content: [
+    "./src/pages/**/*.{js,ts,jsx,tsx,mdx}",
+    "./src/components/**/*.{js,ts,jsx,tsx,mdx}",
+    "./src/app/**/*.{js,ts,jsx,tsx,mdx}",
+  ],
+  theme: {
+    extend: {},
+  },
+  plugins: [],
+};
+</file>
+
+<file path="src/app/api/webhooks/stripe/route.ts">
+import { NextRequest, NextResponse } from "next/server";
+import { stripe } from "@/lib/stripe";
+import { headers } from "next/headers";
+
+export async function POST(req: NextRequest) {
+  // 1. Get raw body text (Required for Stripe signature verification)
+  const body = await req.text();
+  
+  // 2. Get headers (Must be awaited in Next.js 15+)
+  const headersList = await headers();
+  const signature = headersList.get("Stripe-Signature");
+
+  if (!signature) {
+    return new NextResponse("Missing Stripe Signature", { status: 400 });
+  }
+
+  let event;
+
+  try {
+    // 3. Construct the Stripe event
+    event = stripe.webhooks.constructEvent(
+      body,
+      signature,
+      process.env.STRIPE_WEBHOOK_SECRET!
+    );
+  } catch (error) {
+    console.error("Webhook Error:", error);
+    return new NextResponse("Invalid Signature", { status: 400 });
+  }
+
+  // 4. Handle events
+  switch (event.type) {
+    case "checkout.session.completed":
+      const session = event.data.object;
+      // Add your database logic here
+      console.log(`Payment confirmed for: ${session.customer_email}`);
+      break;
+    default:
+      console.log(`Unhandled event type: ${event.type}`);
+  }
+
+  return NextResponse.json({ received: true });
+}
+</file>
+
+<file path="next-env.d.ts">
+/// <reference types="next" />
+/// <reference types="next/image-types/global" />
+import "./.next/dev/types/routes.d.ts";
+
+// NOTE: This file should not be edited
+// see https://nextjs.org/docs/app/api-reference/config/typescript for more information.
+</file>
+
+<file path="src/app/layout.tsx">
+import type { Metadata } from "next";
+import { siteConfig } from "@/siteconfig";
+import "./globals.css";
+
+export const metadata: Metadata = {
+  title: siteConfig.name,
+  description: siteConfig.description,
+};
+
+export default function RootLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <html lang="en">
+      <body className="bg-slate-950 text-slate-200 antialiased min-h-screen flex flex-col">
+        {/* Persistent Header */}
+        <header className="sticky top-0 z-50 border-b border-white/5 bg-slate-950/80 backdrop-blur-md">
+          <nav className="max-w-5xl mx-auto px-6 py-4 flex justify-between items-center">
+            <span className="font-bold text-xl tracking-tight text-white">{siteConfig.name.toUpperCase()}</span>
+            <div className="flex gap-6 text-sm text-slate-400">
+              <a href="#" className="hover:text-emerald-400 transition-colors">Docs</a>
+              <a href="#" className="hover:text-emerald-400 transition-colors">Pricing</a>
+            </div>
+          </nav>
+        </header>
+
+        {/* Main Content Area */}
+        <main className="flex-grow">{children}</main>
+
+        {/* Persistent Footer */}
+        <footer className="border-t border-white/5 bg-slate-950 mt-12">
+          <div className="max-w-5xl mx-auto px-6 py-8 text-sm text-slate-500">
+            © {new Date().getFullYear()} {siteConfig.name} | {siteConfig.contact.email}
+          </div>
+        </footer>
+      </body>
+    </html>
+  );
+}
+</file>
+
+<file path="src/app/page.tsx">
+"use client";
+
+import { useState } from "react";
+import { siteConfig } from "@/siteconfig";
+
+export default function HomePage() {
+  const [url, setUrl] = useState("");
+  const [report, setReport] = useState<any>(null);
+  const [loading, setLoading] = useState(false);
+
+  // Bring back the logic!
+  const runDiagnostic = async () => {
+    if (!url) return;
+    setLoading(true);
+    try {
+      const response = await fetch('/api/audit', {
+        method: 'POST',
+        body: JSON.stringify({ url }),
+        headers: { 'Content-Type': 'application/json' }
+      });
+      
+      const result = await response.json();
+      if (result.success) {
+        setReport(result.data);
+      }
+    } catch (error) {
+      console.error("Audit failed:", error);
+      alert("Failed to run audit.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="relative pt-12 pb-20 px-6">
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[300px] bg-emerald-500/10 rounded-full blur-[120px] pointer-events-none" />
+
+      <div className="max-w-4xl mx-auto relative z-10">
+        <div className="text-center mb-16 space-y-4">
+          <h1 className="text-5xl font-bold tracking-tighter text-white">AI Optimization Engine</h1>
+          <p className="text-slate-400 text-lg max-w-xl mx-auto">
+            Audit your site’s visibility to AI agents. Get the infrastructure you need to be discoverable in the new search era.
+          </p>
+        </div>
+
+        <section className="bg-slate-900/50 backdrop-blur-xl border border-white/10 rounded-3xl p-8 shadow-2xl">
+          <div className="flex gap-4">
+            <input 
+              value={url}
+              onChange={(e) => setUrl(e.target.value)}
+              placeholder="https://your-site.com"
+              className="flex-1 bg-black/50 border border-white/10 rounded-xl px-5 py-3 text-white focus:border-emerald-500 outline-none"
+            />
+            <button 
+              onClick={runDiagnostic}
+              disabled={loading}
+              className="bg-emerald-500 text-black font-bold px-8 py-3 rounded-xl hover:bg-emerald-400 transition-colors"
+            >
+              {loading ? "ANALYZING..." : "AUDIT SITE"}
+            </button>
+          </div>
+
+          {report && (
+            <div className="mt-10 p-6 bg-black/20 rounded-2xl border border-white/5 space-y-6">
+              <div className="flex justify-between items-center border-b border-white/5 pb-6">
+                <h2 className="text-xl font-bold">Audit Results</h2>
+                <span className="text-3xl font-black text-emerald-400">{report.score}%</span>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="p-4 bg-slate-950/50 rounded-xl border border-white/5">
+                  <p className="text-xs text-slate-500 uppercase tracking-wider font-bold">/llms.txt</p>
+                  <p className={report.llmsTxt ? "text-emerald-400" : "text-rose-400"}>
+                    {report.llmsTxt ? "Ready" : "Missing"}
+                  </p>
+                </div>
+                <div className="p-4 bg-slate-950/50 rounded-xl border border-white/5">
+                  <p className="text-xs text-slate-500 uppercase tracking-wider font-bold">Schema</p>
+                  <p className={report.schema ? "text-emerald-400" : "text-rose-400"}>
+                    {report.schema ? "Active" : "Not Found"}
+                  </p>
+                </div>
+                <div className="p-4 bg-slate-950/50 rounded-xl border border-white/5">
+                  <p className="text-xs text-slate-500 uppercase tracking-wider font-bold">Bot Auth</p>
+                  <p className={report.robotsTxt ? "text-emerald-400" : "text-amber-400"}>
+                    {report.robotsTxt ? "Configured" : "Warning"}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+        </section>
+      </div>
+    </div>
+  );
+}
+</file>
+
+<file path="tsconfig.json">
+{
+  "compilerOptions": {
+    "target": "ES2017",
+    "lib": [
+      "dom",
+      "dom.iterable",
+      "esnext"
+    ],
+    "allowJs": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "noEmit": true,
+    "esModuleInterop": true,
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "jsx": "react-jsx",
+    "incremental": true,
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ],
+    "paths": {
+      "@/*": [
+        "./src/*"
+      ]
+    }
+  },
+  "include": [
+    "next-env.d.ts",
+    "**/*.ts",
+    "**/*.tsx",
+    ".next/types/**/*.ts",
+    ".next/dev/types/**/*.ts"
+  ],
+  "exclude": [
+    "node_modules"
+  ]
+}
+</file>
+
+<file path=".gitignore">
+node_modules/
+.next/
+.env*
+</file>
+
+<file path="src/app/ai-context/route.ts">
+import { NextResponse } from "next/server";
+import { siteConfig } from "../../siteconfig";
+
+// This ensures your route is fast and doesn't rely on heavy server-side rendering
+export const runtime = "edge";
+
+export async function GET() {
+  return NextResponse.json({
+    status: "active",
+    engine: "AIO Engine",
+    timestamp: new Date().toISOString(),
+    data: siteConfig,
+  });
+}
+</file>
+
+<file path="src/app/llms.txt/route.ts">
+export const runtime = "edge"; export async function GET() { return new Response("# AIO Engine\nAI optimization infrastructure for developers.", { headers: { "Content-Type": "text/markdown" } }); }
+</file>
+
+<file path="src/app/robots.txt/route.ts">
+export const runtime = "edge"; export async function GET() { return new Response("User-agent: *\nAllow: /\nSitemap: https://aioengine.dev/sitemap.xml", { headers: { "Content-Type": "text/plain" } }); }
+</file>
+
+<file path="package.json">
+{
+  "name": "aioengine",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "cheerio": "^1.2.0",
+    "next": "^16.2.9",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7",
+    "stripe": "^22.2.2"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.3.1",
+    "@types/node": "^20",
+    "@types/react": "^18",
+    "@types/react-dom": "^18",
+    "autoprefixer": "^10.5.0",
+    "postcss": "^8.5.15",
+    "tailwindcss": "^4.3.1",
+    "typescript": "^5"
+  }
+}
+</file>
+
+</files>
