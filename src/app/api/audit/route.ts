@@ -1,66 +1,139 @@
-import { NextResponse } from 'next/server';
-import * as cheerio from 'cheerio';
+import { NextResponse } from "next/server";
+import * as cheerio from "cheerio";
+
+type AuditRequest = {
+  url?: unknown;
+};
+
+const USER_AGENT = "aioengine-diagnostic-bot/1.0";
+const REQUEST_TIMEOUT_MS = 8_000;
+
+function normalizeUrl(value: unknown): URL {
+  if (typeof value !== "string" || !value.trim()) {
+    throw new Error("A website URL is required.");
+  }
+
+  const trimmedUrl = value.trim();
+  const urlWithProtocol = /^https?:\/\//i.test(trimmedUrl)
+    ? trimmedUrl
+    : `https://${trimmedUrl}`;
+
+  const parsedUrl = new URL(urlWithProtocol);
+
+  if (!["http:", "https:"].includes(parsedUrl.protocol)) {
+    throw new Error("Only HTTP and HTTPS URLs are supported.");
+  }
+
+  return parsedUrl;
+}
+
+async function checkFile(origin: string, path: string): Promise<boolean> {
+  const fileUrl = new URL(path, origin);
+
+  try {
+    const headResponse = await fetch(fileUrl, {
+      method: "HEAD",
+      headers: {
+        "User-Agent": USER_AGENT,
+      },
+      redirect: "follow",
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+      cache: "no-store",
+    });
+
+    if (headResponse.ok) {
+      return true;
+    }
+
+    // Some servers reject HEAD requests even when the file exists.
+    const getResponse = await fetch(fileUrl, {
+      method: "GET",
+      headers: {
+        "User-Agent": USER_AGENT,
+      },
+      redirect: "follow",
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+      cache: "no-store",
+    });
+
+    return getResponse.ok;
+  } catch {
+    return false;
+  }
+}
 
 export async function POST(req: Request) {
   try {
-    const { url } = await req.json();
-    const baseUrl = url.startsWith('http') ? url : `https://${url}`;
-
-    // 1. Check for standard AI/Crawler files
-    const checkFile = async (path: string) => {
-      try {
-        const res = await fetch(`${baseUrl}${path}`, { 
-          method: 'HEAD',
-          headers: { 'User-Agent': 'aioengine-diagnostic-bot' }
-        });
-        return res.ok;
-      } catch {
-        return false;
-      }
-    };
+    const body = (await req.json()) as AuditRequest;
+    const parsedUrl = normalizeUrl(body.url);
+    const origin = parsedUrl.origin;
 
     const [hasRobots, hasLlms] = await Promise.all([
-      checkFile('/robots.txt'),
-      checkFile('/llms.txt')
+      checkFile(origin, "/robots.txt"),
+      checkFile(origin, "/llms.txt"),
     ]);
 
-    // 2. Scrape the homepage for LocalBusiness/Organization Schema
     let hasSchema = false;
+
     try {
-      const htmlRes = await fetch(baseUrl, { 
-        headers: { 'User-Agent': 'aioengine-diagnostic-bot' } 
+      const htmlResponse = await fetch(origin, {
+        method: "GET",
+        headers: {
+          "User-Agent": USER_AGENT,
+        },
+        redirect: "follow",
+        signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+        cache: "no-store",
       });
-      if (htmlRes.ok) {
-        const html = await htmlRes.text();
+
+      if (htmlResponse.ok) {
+        const html = await htmlResponse.text();
         const $ = cheerio.load(html);
-        
-        $('script[type="application/ld+json"]').each((_, el) => {
-          const content = $(el).html();
-          if (content && (content.includes('LocalBusiness') || content.includes('Organization'))) {
+
+        $('script[type="application/ld+json"]').each((_, element) => {
+          const content = $(element).html();
+
+          if (
+            content &&
+            (content.includes("LocalBusiness") ||
+              content.includes("Organization"))
+          ) {
             hasSchema = true;
           }
         });
       }
-    } catch (e) {
-      console.log("Schema scrape failed, continuing.");
+    } catch {
+      console.log("Schema scrape failed, continuing audit.");
     }
 
-    // 3. Calculate AI-Ready Score
     let score = 0;
+
     if (hasRobots) score += 20;
     if (hasLlms) score += 40;
     if (hasSchema) score += 40;
 
-    return NextResponse.json({ 
-      success: true, 
-      data: { 
+    return NextResponse.json({
+      success: true,
+      data: {
         score,
         robotsTxt: hasRobots,
         llmsTxt: hasLlms,
-        schema: hasSchema
-      } 
+        schema: hasSchema,
+        checkedUrl: origin,
+      },
     });
   } catch (error) {
-    return NextResponse.json({ success: false, error: 'Audit failed' }, { status: 500 });
+    const message =
+      error instanceof Error ? error.message : "The audit failed.";
+
+    return NextResponse.json(
+      {
+        success: false,
+        error: message,
+      },
+      {
+        status: 400,
+      },
+    );
   }
 }
