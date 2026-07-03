@@ -131,6 +131,29 @@ export default function Home() {
     }
   }
 
+  function downloadReport() {
+    if (!report) return;
+
+    const reportJson = JSON.stringify(report, null, 2);
+    const blob = new Blob([reportJson], {
+      type: "application/json",
+    });
+
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+
+    link.href = url;
+    link.download = `aioengine-form-report-${new Date()
+      .toISOString()
+      .slice(0, 10)}.json`;
+
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+
+    URL.revokeObjectURL(url);
+  }
+
   async function analyze() {
     setLoading(true);
     setError("");
@@ -202,28 +225,28 @@ export default function Home() {
               </div>
 
               <div className="flex flex-wrap gap-2">
-  <button
-    onClick={() => {
-      setSource(sampleForm);
-      setReport(null);
-      setError("");
-    }}
-    className="rounded-full border border-white/10 px-4 py-2 text-sm text-slate-200 hover:bg-white/10"
-  >
-    Safe sample
-  </button>
+                <button
+                  onClick={() => {
+                    setSource(sampleForm);
+                    setReport(null);
+                    setError("");
+                  }}
+                  className="rounded-full border border-white/10 px-4 py-2 text-sm text-slate-200 hover:bg-white/10"
+                >
+                  Safe sample
+                </button>
 
-  <button
-    onClick={() => {
-      setSource(riskyForm);
-      setReport(null);
-      setError("");
-    }}
-    className="rounded-full border border-red-400/30 bg-red-400/10 px-4 py-2 text-sm text-red-100 hover:bg-red-400/20"
-  >
-    Risky sample
-  </button>
-</div>
+                <button
+                  onClick={() => {
+                    setSource(riskyForm);
+                    setReport(null);
+                    setError("");
+                  }}
+                  className="rounded-full border border-red-400/30 bg-red-400/10 px-4 py-2 text-sm text-red-100 hover:bg-red-400/20"
+                >
+                  Risky sample
+                </button>
+              </div>
             </div>
 
             <textarea
@@ -249,10 +272,23 @@ export default function Home() {
           </section>
 
           <section className="rounded-3xl border border-white/10 bg-white/[0.03] p-6">
-            <h2 className="text-xl font-semibold">Report</h2>
-            <p className="mt-1 text-sm text-slate-400">
-              Your safety and agent-readiness output appears here.
-            </p>
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div>
+                <h2 className="text-xl font-semibold">Report</h2>
+                <p className="mt-1 text-sm text-slate-400">
+                  Your safety and agent-readiness output appears here.
+                </p>
+              </div>
+
+              {report ? (
+                <button
+                  onClick={downloadReport}
+                  className="rounded-full border border-cyan-400/30 bg-cyan-400/10 px-4 py-2 text-sm font-medium text-cyan-100 transition hover:bg-cyan-400/20"
+                >
+                  Download report
+                </button>
+              ) : null}
+            </div>
 
             {!report ? (
               <div className="mt-5 flex h-[500px] items-center justify-center rounded-2xl border border-dashed border-white/10 bg-slate-900/60 p-8 text-center text-slate-500">
