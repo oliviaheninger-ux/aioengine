@@ -80,6 +80,26 @@ function CodeCard({
   );
 }
 
+function ReportMetric({
+  label,
+  value,
+  detail,
+}: {
+  label: string;
+  value: string;
+  detail: string;
+}) {
+  return (
+    <div className="rounded-2xl border border-white/10 bg-slate-900/70 p-4">
+      <p className="text-xs uppercase tracking-[0.22em] text-slate-500">
+        {label}
+      </p>
+      <p className="mt-2 text-2xl font-semibold text-white">{value}</p>
+      <p className="mt-1 text-sm text-slate-400">{detail}</p>
+    </div>
+  );
+}
+
 export default function Home() {
   const [source, setSource] = useState(sampleForm);
   const [report, setReport] = useState<Report | null>(null);
@@ -228,6 +248,30 @@ export default function Home() {
                   <p className="mt-3 text-lg font-semibold">
                     {report.summary}
                   </p>
+                </div>
+
+                <div className="grid gap-3 sm:grid-cols-3">
+                  <ReportMetric
+                    label="Fields"
+                    value={String(report.fields.length)}
+                    detail="Detected inputs"
+                  />
+
+                  <ReportMetric
+                    label="Issues"
+                    value={String(report.issues.length)}
+                    detail="Safety concerns"
+                  />
+
+                  <ReportMetric
+                    label="Agent status"
+                    value={report.riskLevel === "low" ? "Ready" : "Review"}
+                    detail={
+                      report.riskLevel === "low"
+                        ? "Safe with validation"
+                        : "Confirm before action"
+                    }
+                  />
                 </div>
 
                 <div className="rounded-2xl border border-white/10 bg-slate-900/70 p-5">
