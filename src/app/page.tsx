@@ -37,7 +37,7 @@ const sampleForm = `<form action="/contact" method="POST">
   <button type="submit">Send message</button>
 </form>`;
 
-function riskLabelClasses(risk: string) {
+function riskLabelClasses(risk: Report["riskLevel"]) {
   if (risk === "high") {
     return "border-red-500/30 bg-red-500/10 text-red-200";
   }
@@ -49,11 +49,56 @@ function riskLabelClasses(risk: string) {
   return "border-emerald-500/30 bg-emerald-500/10 text-emerald-100";
 }
 
+function CodeCard({
+  title,
+  value,
+  copied,
+  onCopy,
+}: {
+  title: string;
+  value: string;
+  copied: string | null;
+  onCopy: (title: string, value: string) => void;
+}) {
+  return (
+    <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-6">
+      <div className="flex items-center justify-between gap-4">
+        <h3 className="font-semibold">{title}</h3>
+
+        <button
+          onClick={() => onCopy(title, value)}
+          className="rounded-full border border-white/10 px-3 py-1.5 text-xs font-medium text-slate-200 transition hover:bg-white/10"
+        >
+          {copied === title ? "Copied!" : "Copy"}
+        </button>
+      </div>
+
+      <pre className="mt-4 max-h-[420px] overflow-auto rounded-2xl bg-slate-900 p-4 text-xs leading-5 text-slate-300">
+        {value}
+      </pre>
+    </div>
+  );
+}
+
 export default function Home() {
   const [source, setSource] = useState(sampleForm);
   const [report, setReport] = useState<Report | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [copied, setCopied] = useState<string | null>(null);
+
+  async function copyToClipboard(title: string, value: string) {
+    try {
+      await navigator.clipboard.writeText(value);
+      setCopied(title);
+
+      window.setTimeout(() => {
+        setCopied(null);
+      }, 1500);
+    } catch {
+      setError("Could not copy to clipboard.");
+    }
+  }
 
   async function analyze() {
     setLoading(true);
@@ -99,16 +144,16 @@ export default function Home() {
 
               <p className="mt-5 max-w-2xl text-lg leading-8 text-slate-300">
                 Paste a form. aioengine detects fields, flags risk, and
-                generates developer-ready validation, action manifests, and test
-                ideas.
+                generates developer-ready validation, action manifests, route
+                handlers, and test ideas.
               </p>
             </div>
 
             <div className="rounded-2xl border border-cyan-400/20 bg-cyan-400/10 p-5 text-sm leading-6 text-cyan-50">
               <p className="font-semibold">MVP goal</p>
               <p className="mt-2 text-cyan-100/90">
-                This first version uses deterministic rules only. Later, we add
-                OpenAI analysis, saved reports, paid exports, and Vercel
+                This first version uses deterministic safety rules. Later, we
+                add OpenAI analysis, saved reports, paid exports, and Vercel
                 deployment checks.
               </p>
             </div>
@@ -264,23 +309,47 @@ export default function Home() {
         </div>
 
         {report ? (
-          <section className="grid gap-6 lg:grid-cols-3">
-            <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-6">
-              <h3 className="font-semibold">Generated Zod schema</h3>
-              <pre className="mt-4 max-h-[420px] overflow-auto rounded-2xl bg-slate-900 p-4 text-xs leading-5 text-slate-300">
-                {report.generated.zodSchema}
-              </pre>
-            </div>
+          <section className="grid gap-6 lg:grid-cols-2">
+            <CodeCard
+              title="Generated Zod schema"
+              value={report.generated.zodSchema}
+              copied={copied}
+              onCopy={copyToClipboard}
+            />
+
+            <CodeCard
+              title="AI action manifest"
+              value={report.generated.actionManifest}
+              copied={copied}
+              onCopy={copyToClipboard}
+            />
+
+            <CodeCard
+              title="Route handler"
+              value={report.generated.routeHandler}
+              copied={copied}
+              onCopy={copyToClipboard}
+            />
 
             <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-6">
-              <h3 className="font-semibold">AI action manifest</h3>
-              <pre className="mt-4 max-h-[420px] overflow-auto rounded-2xl bg-slate-900 p-4 text-xs leading-5 text-slate-300">
-                {report.generated.actionManifest}
-              </pre>
-            </div>
+              <div className="flex items-center justify-between gap-4">
+                <h3 className="font-semibold">Test ideas</h3>
 
-            <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-6">
-              <h3 className="font-semibold">Test ideas</h3>
+                <button
+                  onClick={() =>
+                    copyToClipboard(
+                      "Test ideas",
+                      report.generated.testIdeas
+                        .map((idea, index) => `${index + 1}. ${idea}`)
+                        .join("\n")
+                    )
+                  }
+                  className="rounded-full border border-white/10 px-3 py-1.5 text-xs font-medium text-slate-200 transition hover:bg-white/10"
+                >
+                  {copied === "Test ideas" ? "Copied!" : "Copy"}
+                </button>
+              </div>
+
               <ul className="mt-4 space-y-3 text-sm text-slate-300">
                 {report.generated.testIdeas.map((idea) => (
                   <li
