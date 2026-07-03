@@ -16,12 +16,21 @@ type Issue = {
   suggestion: string;
 };
 
+type ChecklistStatus = "pass" | "warning" | "fail";
+
+type ReadinessChecklistItem = {
+  label: string;
+  status: ChecklistStatus;
+  detail: string;
+};
+
 type Report = {
   riskLevel: "low" | "medium" | "high";
   confidence: number;
   summary: string;
   fields: Field[];
   issues: Issue[];
+  readinessChecklist: ReadinessChecklistItem[];
   generated: {
     zodSchema: string;
     actionManifest: string;
@@ -58,6 +67,24 @@ function riskLabelClasses(risk: Report["riskLevel"]) {
   }
 
   return "border-emerald-500/30 bg-emerald-500/10 text-emerald-100";
+}
+
+function checklistStatusClasses(status: ChecklistStatus) {
+  if (status === "pass") {
+    return "border-emerald-500/30 bg-emerald-500/10 text-emerald-100";
+  }
+
+  if (status === "warning") {
+    return "border-yellow-500/30 bg-yellow-500/10 text-yellow-100";
+  }
+
+  return "border-red-500/30 bg-red-500/10 text-red-100";
+}
+
+function checklistStatusLabel(status: ChecklistStatus) {
+  if (status === "pass") return "Pass";
+  if (status === "warning") return "Review";
+  return "Fix";
 }
 
 function CodeCard({
@@ -181,8 +208,7 @@ export default function Home() {
       setLoading(false);
     }
   }
-
-  return (
+    return (
     <main className="min-h-screen bg-slate-950 text-white">
       <section className="mx-auto flex w-full max-w-6xl flex-col gap-10 px-6 py-10">
         <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-8 shadow-2xl shadow-cyan-500/5">
@@ -199,7 +225,7 @@ export default function Home() {
               <p className="mt-5 max-w-2xl text-lg leading-8 text-slate-300">
                 Paste a form. aioengine detects fields, flags risk, and
                 generates developer-ready validation, action manifests, route
-                handlers, and test ideas.
+                handlers, test ideas, and readiness checks.
               </p>
             </div>
 
@@ -410,6 +436,41 @@ export default function Home() {
                       ))}
                     </div>
                   )}
+                </div>
+
+                <div className="rounded-2xl border border-white/10 bg-slate-900/70 p-5">
+                  <h3 className="font-semibold">
+                    Developer readiness checklist
+                  </h3>
+                  <p className="mt-1 text-sm text-slate-400">
+                    Practical checks before this form should be exposed to AI
+                    agents.
+                  </p>
+
+                  <div className="mt-4 space-y-3">
+                    {report.readinessChecklist.map((item) => (
+                      <div
+                        key={item.label}
+                        className="rounded-xl border border-white/10 bg-white/[0.03] p-4"
+                      >
+                        <div className="flex flex-wrap items-center justify-between gap-3">
+                          <p className="font-medium">{item.label}</p>
+
+                          <span
+                            className={`rounded-full border px-3 py-1 text-xs font-medium ${checklistStatusClasses(
+                              item.status
+                            )}`}
+                          >
+                            {checklistStatusLabel(item.status)}
+                          </span>
+                        </div>
+
+                        <p className="mt-2 text-sm text-slate-300">
+                          {item.detail}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
             )}

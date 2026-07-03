@@ -1,5 +1,6 @@
 export type Severity = "low" | "medium" | "high";
 export type RiskLevel = "low" | "medium" | "high";
+export type ChecklistStatus = "pass" | "warning" | "fail";
 
 export type FormField = {
   name: string;
@@ -18,12 +19,19 @@ export type FormIssue = {
   suggestion: string;
 };
 
+export type ReadinessChecklistItem = {
+  label: string;
+  status: ChecklistStatus;
+  detail: string;
+};
+
 export type FormReport = {
   riskLevel: RiskLevel;
   confidence: number;
   summary: string;
   fields: FormField[];
   issues: FormIssue[];
+  readinessChecklist: ReadinessChecklistItem[];
   generated: {
     zodSchema: string;
     actionManifest: string;
@@ -85,12 +93,7 @@ function includesAny(text: string, terms: string[]) {
 
 function detectRisks(field: FormField) {
   const fieldText = normalizeText(
-    [
-      field.name,
-      field.type,
-      field.placeholder ?? "",
-      field.id ?? "",
-    ].join(" ")
+    [field.name, field.type, field.placeholder ?? "", field.id ?? ""].join(" ")
   );
 
   const risks: string[] = [];
@@ -222,18 +225,17 @@ function zodForField(field: FormField) {
     validator = "z.boolean()";
   } else if (type === "file") {
     validator = "z.any()";
-} else if (
-  name.includes("cvv") ||
-  name.includes("cvc")
-) {
-  validator = "z.string().trim().regex(/^\\d{3,4}$/)";
-} else if (type === "password") {
-  validator = "z.string().min(1).max(200)";  } else if (
-    name.includes("credit card") ||
-    name.includes("card number")
-  ) {
+  } else if (name.includes("cvv") || name.includes("cvc")) {
+    validator = "z.string().trim().regex(/^\\d{3,4}$/)";
+  } else if (type === "password") {
+    validator = "z.string().min(1).max(200)";
+  } else if (name.includes("credit card") || name.includes("card number")) {
     validator = "z.string().trim().min(12).max(19)";
-  } else if (type === "tel" || name.includes("phone") || name.includes("mobile")) {
+  } else if (
+    type === "tel" ||
+    name.includes("phone") ||
+    name.includes("mobile")
+  ) {
     validator = "z.string().trim().min(7).max(30)";
   } else if (
     type === "textarea" ||
@@ -264,7 +266,7 @@ function buildZodSchema(fields: FormField[]) {
 
 export const formSchema = z.object({
 ${lines.join("\n")}
-});
+}).strict();
 
 export type FormInput = z.infer<typeof formSchema>;`;
 }
@@ -324,7 +326,6 @@ export async function POST(request: Request) {
   return Response.json({ ok: true });
 }`;
 }
-
 function buildIssues(fields: FormField[]) {
   const issues: FormIssue[] = [];
 
@@ -404,6 +405,105 @@ function buildIssues(fields: FormField[]) {
   return issues;
 }
 
+function buildReadinessChecklist(
+  fields: FormField[],
+  issues: FormIssue[],
+  riskLevel: RiskLevel
+): ReadinessChecklistItem[] {
+  const hasFields = fields.length > 0;
+
+  const hasHighRisk = fields.some((field) =>
+    field.risks.some((risk) => HIGH_RISK_LABELS.includes(risk))
+  );
+
+  const hasPersonalOrFreeText = fields.some((field) =>
+    field.risks.some((risk) =>
+      ["Personal contact data", "Free-text user content"].includes(risk)
+    )
+  );
+
+  const hasUnnamedFields = fields.some((field) =>
+    field.name.startsWith("field_")
+  );
+
+  const hasRequiredFields = fields.some((field) => field.required);
+
+  const hasHighSeverityIssue = issues.some(
+    (issue) => issue.severity === "high"
+  );
+
+  return [
+    {
+      label: "Server-side validation",
+      status: hasFields ? "pass" : "fail",
+      detail: hasFields
+        ? "aioengine generated a strict Zod schema for the detected fields."
+        : "No fields were detected, so validation could not be generated.",
+    },
+    {
+      label: "Stable field names",
+      status: !hasUnnamedFields && hasFields ? "pass" : "warning",
+      detail:
+        !hasUnnamedFields && hasFields
+          ? "Detected fields have usable names for structured agent actions."
+          : "Some fields are missing stable names or IDs, which can confuse agents.",
+    },
+    {
+      label: "Required fields",
+      status: hasRequiredFields ? "pass" : "warning",
+      detail: hasRequiredFields
+        ? "At least one required field was detected."
+        : "No required fields were detected. Server-side validation should enforce required values.",
+    },
+    {
+      label: "Unexpected fields",
+      status: hasFields ? "pass" : "fail",
+      detail: hasFields
+        ? "The generated Zod schema uses .strict() to reject unexpected fields."
+        : "Unexpected field protection depends on first detecting the expected fields.",
+    },
+    {
+      label: "Human confirmation",
+      status: riskLevel === "low" ? "pass" : "warning",
+      detail:
+        riskLevel === "low"
+          ? "This form appears low risk, so human confirmation may not be required for every submission."
+          : "Medium and high risk forms should require human confirmation before an AI agent submits.",
+    },
+    {
+      label: "Autonomous submission",
+      status: riskLevel === "low" ? "pass" : "fail",
+      detail:
+        riskLevel === "low"
+          ? "Autonomous submission may be allowed after validation and abuse protections."
+          : "Autonomous submission should be blocked for this form.",
+    },
+    {
+      label: "Rate limiting",
+      status: riskLevel === "low" ? "warning" : "fail",
+      detail:
+        riskLevel === "low"
+          ? "Add rate limiting before production use."
+          : "Rate limiting is strongly recommended because this form collects sensitive or abusable input.",
+    },
+    {
+      label: "Spam protection",
+      status: hasPersonalOrFreeText ? "warning" : "pass",
+      detail: hasPersonalOrFreeText
+        ? "Contact and free-text fields should use spam protection or abuse checks."
+        : "No obvious contact or free-text spam risk was detected.",
+    },
+    {
+      label: "Data handling policy",
+      status: hasHighRisk || hasHighSeverityIssue ? "fail" : "warning",
+      detail:
+        hasHighRisk || hasHighSeverityIssue
+          ? "Sensitive forms need clear data handling rules before agent access."
+          : "Document where submissions go and what data is stored.",
+    },
+  ];
+}
+
 export function analyzeForm(source: string): FormReport {
   const input = source.trim();
   const fields: FormField[] = [];
@@ -464,9 +564,7 @@ export function analyzeForm(source: string): FormReport {
         : "low";
 
   const confidence =
-    fields.length === 0
-      ? 0.2
-      : Math.min(0.95, 0.55 + fields.length * 0.08);
+    fields.length === 0 ? 0.2 : Math.min(0.95, 0.55 + fields.length * 0.08);
 
   return {
     riskLevel,
@@ -479,6 +577,7 @@ export function analyzeForm(source: string): FormReport {
           }. Risk level is ${riskLevel}.`,
     fields,
     issues,
+    readinessChecklist: buildReadinessChecklist(fields, issues, riskLevel),
     generated: {
       zodSchema: buildZodSchema(fields),
       actionManifest: buildActionManifest(fields, riskLevel),
