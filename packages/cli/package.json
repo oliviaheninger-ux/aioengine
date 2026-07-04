@@ -1,0 +1,25 @@
+{
+  "name": "aioengine",
+  "version": "0.1.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "dev": "node ./src/index.js",
+    "check": "node ./src/index.js check",
+    "review": "node ./src/index.js review",
+    "rules": "node ./src/index.js rules",
+    "scope": "node ./src/index.js scope"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "bin": {
+    "aioengine": "./src/index.js"
+  },
+  "dependencies": {
+    "commander": "^15.0.0",
+    "picocolors": "^1.1.1"
+  }
+}
