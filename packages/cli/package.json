@@ -9,7 +9,8 @@
     "check": "node ./src/index.js check",
     "review": "node ./src/index.js review",
     "rules": "node ./src/index.js rules",
-    "scope": "node ./src/index.js scope"
+    "scope": "node ./src/index.js scope",
+    "init": "node ./src/index.js init"
   },
   "keywords": [],
   "author": "",

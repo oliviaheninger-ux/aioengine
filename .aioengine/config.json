@@ -1,0 +1,31 @@
+{
+  "version": "0.1.0",
+  "projectType": "auto",
+  "highRiskPatterns": [
+    ".env",
+    "auth",
+    "session",
+    "middleware",
+    "stripe",
+    "billing",
+    "payment",
+    "supabase",
+    "migration",
+    "schema",
+    "rls",
+    "vercel",
+    "netlify",
+    "docker",
+    "package.json",
+    "package-lock.json",
+    "pnpm-lock.yaml",
+    "yarn.lock",
+    ".github/workflows"
+  ],
+  "reviewRules": {
+    "warnOnLargeChanges": true,
+    "largeChangeFileCount": 12,
+    "requireReviewForSensitiveFiles": true,
+    "warnOnDependencyChanges": true
+  }
+}

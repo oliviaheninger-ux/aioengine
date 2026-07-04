@@ -14,6 +14,13 @@ program
   .version("0.1.0");
 
 program
+  .command("init")
+  .description("Set up aioengine for AI change control in this repo.")
+  .action(() => {
+    runInit();
+  });
+
+program
   .command("check")
   .description("Scan your repo for AI coding setup risks.")
   .action(() => {
@@ -27,7 +34,7 @@ program
     runReview();
   });
 
-  program
+program
   .command("scope")
   .description("Check whether changed files match the requested task.")
   .argument("[task...]", "The task you asked the AI coding tool to do")
@@ -45,8 +52,75 @@ program
 
 program.parse();
 
+function runInit() {
+  printHeader("aioengine Init");
+
+  const root = getProjectRoot();
+  const created = [];
+  const skipped = [];
+
+  const aioengineDir = ".aioengine";
+  const configPath = path.join(aioengineDir, "config.json");
+  const claudePath = "CLAUDE.md";
+  const cursorDir = ".cursor/rules";
+  const cursorPath = path.join(cursorDir, "aioengine.mdc");
+
+  if (!isInsideGitRepo()) {
+    console.log(
+      pc.yellow(
+        "Warning: aioengine works best inside a Git repo. Run this from your project folder."
+      )
+    );
+    console.log("");
+  }
+
+  if (!exists(aioengineDir, root)) {
+    fs.mkdirSync(path.join(root, aioengineDir), { recursive: true });
+    created.push(aioengineDir);
+  } else {
+    skipped.push(aioengineDir);
+  }
+
+  if (!exists(configPath, root)) {
+    fs.writeFileSync(
+      path.join(root, configPath),
+      JSON.stringify(getDefaultConfig(), null, 2)
+    );
+    created.push(configPath);
+  } else {
+    skipped.push(configPath);
+  }
+
+  if (!exists(claudePath, root)) {
+    fs.writeFileSync(path.join(root, claudePath), getClaudeRules());
+    created.push(claudePath);
+  } else {
+    skipped.push(claudePath);
+  }
+
+  if (!exists(cursorDir, root)) {
+    fs.mkdirSync(path.join(root, cursorDir), { recursive: true });
+  }
+
+  if (!exists(cursorPath, root)) {
+    fs.writeFileSync(path.join(root, cursorPath), getCursorRules());
+    created.push(cursorPath);
+  } else {
+    skipped.push(cursorPath);
+  }
+
+  printSection("Created", created, "green");
+  printSection("Skipped", skipped, "yellow");
+
+  console.log(pc.bold("Next steps:"));
+  console.log(`  1. Run ${pc.cyan("aioengine check")}`);
+  console.log(`  2. Make or review AI-generated changes`);
+  console.log(`  3. Run ${pc.cyan('aioengine scope "describe the task"')}`);
+  console.log(`  4. Run ${pc.cyan("aioengine review")} before committing`);
+}
+
 function runCheck() {
-  const cwd = process.cwd();
+  const root = getProjectRoot();
 
   const critical = [];
   const warnings = [];
@@ -54,45 +128,54 @@ function runCheck() {
 
   printHeader("aioengine Check");
 
-  const hasGit = exists(".git");
-  const hasPackageJson = exists("package.json");
-  const hasGitignore = exists(".gitignore");
-  const hasClaude = exists("CLAUDE.md");
-  const hasCursorRules = exists(".cursor/rules") || exists(".cursorrules");
-  const envFiles = findFiles([
+  const hasGit = isInsideGitRepo();
+  const hasPackageJson = exists("package.json", root);
+  const hasGitignore = exists(".gitignore", root);
+  const hasClaude = exists("CLAUDE.md", root);
+  const hasCursorRules =
+    exists(".cursor/rules", root) || exists(".cursorrules", root);
+  const hasAioengineConfig = exists(".aioengine/config.json", root);
+  const envFiles = findFiles(root, [
     ".env",
     ".env.local",
     ".env.production",
     ".env.development",
   ]);
-  const mcpFiles = findFiles([".mcp.json", "mcp.json"]);
-  const hasGithubActions = exists(".github/workflows");
+  const mcpFiles = findFiles(root, [".mcp.json", "mcp.json"]);
+  const hasGithubActions = exists(".github/workflows", root);
   const hasTests =
-    exists("__tests__") ||
-    exists("tests") ||
-    exists("test") ||
-    packageScriptIncludes("test");
+    exists("__tests__", root) ||
+    exists("tests", root) ||
+    exists("test", root) ||
+    packageScriptIncludes(root, "test");
 
   if (hasGit) passed.push("Git repo detected");
-  else warnings.push("No .git folder detected. aioengine works best inside a Git repo.");
+  else warnings.push("No Git repo detected. aioengine works best inside a Git repo.");
 
   if (hasPackageJson) passed.push("package.json detected");
   else warnings.push("No package.json detected. Some checks may be limited.");
 
+  if (hasAioengineConfig) passed.push(".aioengine/config.json detected");
+  else warnings.push("No .aioengine/config.json found. Run aioengine init to create one.");
+
   if (hasGitignore) {
     passed.push(".gitignore detected");
 
-    const gitignore = read(".gitignore");
+    const gitignore = read(".gitignore", root);
     if (!gitignore.includes(".env")) {
       critical.push(".gitignore does not appear to include .env patterns.");
     }
   } else {
-    critical.push("Missing .gitignore. Env files and generated files may be accidentally committed.");
+    critical.push(
+      "Missing .gitignore. Env files and generated files may be accidentally committed."
+    );
   }
 
   if (envFiles.length > 0) {
     critical.push(
-      `Env files detected at repo root: ${envFiles.join(", ")}. AI coding tools may be able to read sensitive local config.`
+      `Env files detected at repo root: ${envFiles.join(
+        ", "
+      )}. AI coding tools may be able to read sensitive local config.`
     );
   } else {
     passed.push("No common env files detected at repo root");
@@ -105,12 +188,13 @@ function runCheck() {
   else warnings.push("No Cursor rules detected. Cursor may not have project-specific boundaries.");
 
   if (mcpFiles.length > 0) {
-    warnings.push(`MCP config detected: ${mcpFiles.join(", ")}. Review tool access carefully.`);
+    warnings.push(
+      `MCP config detected: ${mcpFiles.join(", ")}. Review tool access carefully.`
+    );
   } else {
     passed.push("No root MCP config detected");
   }
-
-  if (hasGithubActions) passed.push("GitHub Actions detected");
+    if (hasGithubActions) passed.push("GitHub Actions detected");
   else warnings.push("No GitHub Actions folder detected. PR checks may not be configured yet.");
 
   if (hasTests) passed.push("Tests detected");
@@ -118,7 +202,7 @@ function runCheck() {
 
   const score = calculateScore(critical.length, warnings.length, passed.length);
 
-  console.log(`${pc.bold("Project:")} ${cwd}`);
+  console.log(`${pc.bold("Project:")} ${root}`);
   console.log(`${pc.bold("AI coding setup score:")} ${formatScore(score)}\n`);
 
   printSection("Critical", critical, "red");
@@ -127,8 +211,8 @@ function runCheck() {
 
   console.log(pc.bold("Recommended next step:"));
 
-  if (!hasClaude || !hasCursorRules) {
-    console.log(`  Run ${pc.cyan("aioengine rules")} to generate starter AI coding rules.`);
+  if (!hasAioengineConfig || !hasClaude || !hasCursorRules) {
+    console.log(`  Run ${pc.cyan("aioengine init")} to set up AI change control.`);
   } else {
     console.log(`  Run ${pc.cyan("aioengine review")} before committing AI-generated changes.`);
   }
@@ -137,26 +221,19 @@ function runCheck() {
 function runReview() {
   printHeader("aioengine Review");
 
-  if (!exists(".git")) {
+  if (!isInsideGitRepo()) {
     console.log(pc.red("This command must be run inside a Git repo."));
     return;
   }
 
-  let diff = "";
+  const root = getProjectRoot();
+  const files = getChangedFiles(root);
 
-  try {
-    diff = execSync("git diff --name-only", { encoding: "utf8" }).trim();
-  } catch {
-    console.log(pc.red("Could not read Git diff."));
-    return;
-  }
-
-  if (!diff) {
+  if (files.length === 0) {
     console.log(pc.green("No uncommitted changes found."));
     return;
   }
 
-  const files = diff.split("\n").filter(Boolean);
   const riskyFiles = files.filter(isRiskyFile);
   const reviewItems = [];
 
@@ -173,9 +250,12 @@ function runReview() {
   );
 
   if (packageChanged) {
-    reviewItems.push("Package/dependency files changed. Review for unexpected dependency additions.");
+    reviewItems.push(
+      "Package/dependency files changed. Review for unexpected dependency additions."
+    );
   }
 
+  console.log(`${pc.bold("Project:")} ${root}`);
   console.log(`${pc.bold("Changed files:")} ${files.length}\n`);
 
   files.forEach((file) => {
@@ -195,12 +275,13 @@ function runReview() {
 function runScope(task) {
   printHeader("aioengine Scope");
 
-  if (!exists(".git")) {
+  if (!isInsideGitRepo()) {
     console.log(pc.red("This command must be run inside a Git repo."));
     return;
   }
 
-  const files = getChangedFiles();
+  const root = getProjectRoot();
+  const files = getChangedFiles(root);
 
   if (files.length === 0) {
     console.log(pc.green("No uncommitted changes found."));
@@ -283,108 +364,74 @@ function runScope(task) {
 
   if (outOfScopeFiles.length > 0) {
     console.log(
-      `  ${pc.red("Do not commit yet.")} Review the out-of-scope files and revert anything unrelated to the task.`
+      `  ${pc.red(
+        "Do not commit yet."
+      )} Review the out-of-scope files and revert anything unrelated to the task.`
     );
   } else {
     console.log(
-      `  ${pc.yellow("Review carefully.")} These changes may be valid, but they touch sensitive areas.`
+      `  ${pc.yellow(
+        "Review carefully."
+      )} These changes may be valid, but they touch sensitive areas.`
     );
   }
 }
-
 function runRules() {
   printHeader("aioengine Rules");
+
+  const root = getProjectRoot();
 
   const claudePath = "CLAUDE.md";
   const cursorDir = ".cursor/rules";
   const cursorPath = path.join(cursorDir, "aioengine.mdc");
 
-  const claudeContent = `# AI Coding Rules
+  const created = [];
+  const skipped = [];
 
-This project uses AI-assisted development. Follow these rules carefully.
-
-## Before changing code
-
-- Understand the requested task before editing files.
-- Keep changes narrow and directly related to the task.
-- Do not modify auth, billing, database, env, deployment, or security files unless explicitly asked.
-- Do not add new dependencies unless clearly necessary.
-- Do not delete files without explaining why.
-
-## High-risk areas
-
-Changes to these areas require extra human review:
-
-- Authentication and session logic
-- Billing and payment code
-- Database migrations and RLS policies
-- Environment variables and config files
-- Deployment settings
-- GitHub Actions and CI
-- Middleware and API routes
-- Package/dependency files
-
-## Testing
-
-When making code changes:
-
-- Run relevant tests when possible.
-- Mention any tests that were not run.
-- Keep the final summary specific and honest.
-
-## Scope
-
-If the task is UI-only, do not edit backend, database, billing, auth, or deployment files.
-`;
-
-  const cursorContent = `---
-description: AI coding safety rules generated by aioengine
-alwaysApply: true
----
-
-Keep changes narrow and task-focused.
-
-Do not modify auth, billing, database, environment, deployment, dependency, or security files unless explicitly requested.
-
-Flag high-risk changes for human review.
-
-Do not add dependencies without a clear reason.
-
-For UI-only tasks, avoid backend, API, database, and config changes.
-`;
-
-  if (!exists(claudePath)) {
-    fs.writeFileSync(claudePath, claudeContent);
-    console.log(pc.green(`Created ${claudePath}`));
+  if (!exists(claudePath, root)) {
+    fs.writeFileSync(path.join(root, claudePath), getClaudeRules());
+    created.push(claudePath);
   } else {
-    console.log(pc.yellow(`${claudePath} already exists. Skipped.`));
+    skipped.push(claudePath);
   }
 
-  if (!exists(cursorDir)) {
-    fs.mkdirSync(cursorDir, { recursive: true });
+  if (!exists(cursorDir, root)) {
+    fs.mkdirSync(path.join(root, cursorDir), { recursive: true });
   }
 
-  if (!exists(cursorPath)) {
-    fs.writeFileSync(cursorPath, cursorContent);
-    console.log(pc.green(`Created ${cursorPath}`));
+  if (!exists(cursorPath, root)) {
+    fs.writeFileSync(path.join(root, cursorPath), getCursorRules());
+    created.push(cursorPath);
   } else {
-    console.log(pc.yellow(`${cursorPath} already exists. Skipped.`));
+    skipped.push(cursorPath);
   }
 
-  console.log("");
+  printSection("Created", created, "green");
+  printSection("Skipped", skipped, "yellow");
+
   console.log(pc.bold("Next step:"));
   console.log(`  Run ${pc.cyan("aioengine check")} again.`);
 }
 
-function getChangedFiles() {
+function getChangedFiles(root) {
   try {
-    const diff = execSync("git diff --name-only", { encoding: "utf8" }).trim();
+    const changed = execSync("git diff --name-only", {
+      encoding: "utf8",
+      cwd: root,
+    })
+      .trim()
+      .split("\n")
+      .filter(Boolean);
 
-    if (!diff) {
-      return [];
-    }
+    const untracked = execSync("git ls-files --others --exclude-standard", {
+      encoding: "utf8",
+      cwd: root,
+    })
+      .trim()
+      .split("\n")
+      .filter(Boolean);
 
-    return diff.split("\n").filter(Boolean);
+    return Array.from(new Set([...changed, ...untracked]));
   } catch {
     return [];
   }
@@ -416,6 +463,7 @@ function inferTaskProfile(task) {
         "hero",
         "landing",
         "pricing",
+        "headline",
       ],
       allowed: [
         "app/",
@@ -464,7 +512,14 @@ function inferTaskProfile(task) {
         "headline",
         "description",
       ],
-      allowed: [".md", "readme", "app/", "src/app/", "components/", "src/components/"],
+      allowed: [
+        ".md",
+        "readme",
+        "app/",
+        "src/app/",
+        "components/",
+        "src/components/",
+      ],
       sensitive: [
         "api/",
         "auth",
@@ -561,31 +616,6 @@ function isProbablyOutOfScope(file, profile) {
   return !explicitlyAllowed;
 }
 
-function exists(relativePath) {
-  return fs.existsSync(path.join(process.cwd(), relativePath));
-}
-
-function read(relativePath) {
-  try {
-    return fs.readFileSync(path.join(process.cwd(), relativePath), "utf8");
-  } catch {
-    return "";
-  }
-}
-
-function findFiles(files) {
-  return files.filter((file) => exists(file));
-}
-
-function packageScriptIncludes(scriptName) {
-  try {
-    const pkg = JSON.parse(read("package.json"));
-    return Boolean(pkg.scripts?.[scriptName]);
-  } catch {
-    return false;
-  }
-}
-
 function isRiskyFile(file) {
   const riskyPatterns = [
     ".env",
@@ -612,9 +642,61 @@ function isRiskyFile(file) {
   const lower = file.toLowerCase();
   return riskyPatterns.some((pattern) => lower.includes(pattern));
 }
+function getProjectRoot() {
+  try {
+    return execSync("git rev-parse --show-toplevel", {
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+    }).trim();
+  } catch {
+    return process.cwd();
+  }
+}
+
+function isInsideGitRepo() {
+  try {
+    const result = execSync("git rev-parse --is-inside-work-tree", {
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+    })
+      .trim()
+      .toLowerCase();
+
+    return result === "true";
+  } catch {
+    return false;
+  }
+}
+
+function exists(relativePath, root = process.cwd()) {
+  return fs.existsSync(path.join(root, relativePath));
+}
+
+function read(relativePath, root = process.cwd()) {
+  try {
+    return fs.readFileSync(path.join(root, relativePath), "utf8");
+  } catch {
+    return "";
+  }
+}
+
+function findFiles(root, files) {
+  return files.filter((file) => exists(file, root));
+}
+
+function packageScriptIncludes(root, scriptName) {
+  try {
+    const pkg = JSON.parse(read("package.json", root));
+    return Boolean(pkg.scripts?.[scriptName]);
+  } catch {
+    return false;
+  }
+}
 
 function calculateScore(criticalCount, warningCount, passedCount) {
-  const raw = 100 - criticalCount * 18 - warningCount * 7 + Math.min(passedCount * 2, 10);
+  const raw =
+    100 - criticalCount * 18 - warningCount * 7 + Math.min(passedCount * 2, 10);
+
   return Math.max(0, Math.min(100, raw));
 }
 
@@ -634,7 +716,9 @@ function printHeader(title) {
 function printSection(title, items, color) {
   if (items.length === 0) return;
 
-  const colorFn = color === "red" ? pc.red : color === "yellow" ? pc.yellow : pc.green;
+  const colorFn =
+    color === "red" ? pc.red : color === "yellow" ? pc.yellow : pc.green;
+
   const icon = color === "red" ? "✗" : color === "yellow" ? "!" : "✓";
 
   console.log(pc.bold(colorFn(title)));
@@ -644,4 +728,96 @@ function printSection(title, items, color) {
   });
 
   console.log("");
+}
+
+function getDefaultConfig() {
+  return {
+    version: "0.1.0",
+    projectType: "auto",
+    highRiskPatterns: [
+      ".env",
+      "auth",
+      "session",
+      "middleware",
+      "stripe",
+      "billing",
+      "payment",
+      "supabase",
+      "migration",
+      "schema",
+      "rls",
+      "vercel",
+      "netlify",
+      "docker",
+      "package.json",
+      "package-lock.json",
+      "pnpm-lock.yaml",
+      "yarn.lock",
+      ".github/workflows",
+    ],
+    reviewRules: {
+      warnOnLargeChanges: true,
+      largeChangeFileCount: 12,
+      requireReviewForSensitiveFiles: true,
+      warnOnDependencyChanges: true,
+    },
+  };
+}
+
+function getClaudeRules() {
+  return `# AI Coding Rules
+
+This project uses AI-assisted development. Follow these rules carefully.
+
+## Before changing code
+
+- Understand the requested task before editing files.
+- Keep changes narrow and directly related to the task.
+- Do not modify auth, billing, database, env, deployment, or security files unless explicitly asked.
+- Do not add new dependencies unless clearly necessary.
+- Do not delete files without explaining why.
+
+## High-risk areas
+
+Changes to these areas require extra human review:
+
+- Authentication and session logic
+- Billing and payment code
+- Database migrations and RLS policies
+- Environment variables and config files
+- Deployment settings
+- GitHub Actions and CI
+- Middleware and API routes
+- Package/dependency files
+
+## Testing
+
+When making code changes:
+
+- Run relevant tests when possible.
+- Mention any tests that were not run.
+- Keep the final summary specific and honest.
+
+## Scope
+
+If the task is UI-only, do not edit backend, database, billing, auth, or deployment files.
+`;
+}
+
+function getCursorRules() {
+  return `---
+description: AI coding safety rules generated by aioengine
+alwaysApply: true
+---
+
+Keep changes narrow and task-focused.
+
+Do not modify auth, billing, database, environment, deployment, dependency, or security files unless explicitly requested.
+
+Flag high-risk changes for human review.
+
+Do not add dependencies without a clear reason.
+
+For UI-only tasks, avoid backend, API, database, and config changes.
+`;
 }
