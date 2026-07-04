@@ -441,6 +441,47 @@ function inferTaskProfile(task) {
   const lower = task.toLowerCase();
 
   const profiles = [
+        {
+      id: "cli",
+      label: "CLI / tooling task",
+      keywords: [
+        "cli",
+        "command",
+        "terminal",
+        "init",
+        "check",
+        "review",
+        "scope",
+        "rules",
+        "package",
+        "script",
+        "npm",
+        "bin",
+        "commander",
+        "aioengine",
+      ],
+      allowed: [
+        "packages/cli/",
+        "package.json",
+        "package-lock.json",
+        "src/index.js",
+        "readme",
+        ".aioengine/",
+        "CLAUDE.md",
+        ".cursor/",
+      ],
+      sensitive: [
+        ".env",
+        "auth",
+        "stripe",
+        "billing",
+        "payment",
+        "supabase",
+        "migration",
+        "middleware",
+        ".github/workflows",
+      ],
+    },
     {
       id: "ui",
       label: "UI / frontend task",
