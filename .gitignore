@@ -2,3 +2,5 @@
 .next/
 .env*
 repomix-output.xml
+
+tsconfig.tsbuildinfo
