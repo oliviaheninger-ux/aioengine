@@ -1,538 +1,300 @@
-"use client";
+import { siteConfig } from "@/siteconfig";
 
-import { useState } from "react";
+const tools = [
+  {
+    name: "Check",
+    label: "Free setup scan",
+    description:
+      "Scan your repo for missing AI coding rules, risky config patterns, env exposure, weak git hygiene, and setup gaps.",
+  },
+  {
+    name: "Review",
+    label: "AI change review",
+    description:
+      "Review AI-generated diffs before commit. Flag risky files, dependency changes, missing tests, and sensitive areas.",
+  },
+  {
+    name: "Scope",
+    label: "Out-of-scope detection",
+    description:
+      "Compare the requested task to the files changed and spot when AI wandered into auth, billing, database, or config.",
+  },
+  {
+    name: "Rules",
+    label: "Agent instructions",
+    description:
+      "Generate practical Claude Code and Cursor rules that keep AI changes narrow, safer, and easier to review.",
+  },
+];
 
-type Field = {
-  name: string;
-  type: string;
-  required: boolean;
-  risks: string[];
-};
+const risks = [
+  "AI changed auth, billing, database, or env files during a small UI task.",
+  "A coding agent added a dependency you did not ask for.",
+  "Claude or Cursor edited too many unrelated files.",
+  "Your repo has no clear AI rules, boundaries, or review checklist.",
+  "MCP tools or local config may expose more access than you realize.",
+];
 
-type Issue = {
-  severity: "low" | "medium" | "high";
-  title: string;
-  detail: string;
-  suggestion: string;
-};
-
-type ChecklistStatus = "pass" | "warning" | "fail";
-
-type ReadinessChecklistItem = {
-  label: string;
-  status: ChecklistStatus;
-  detail: string;
-};
-
-type Report = {
-  riskLevel: "low" | "medium" | "high";
-  confidence: number;
-  summary: string;
-  fields: Field[];
-  issues: Issue[];
-  readinessChecklist: ReadinessChecklistItem[];
-  generated: {
-    zodSchema: string;
-    actionManifest: string;
-    routeHandler: string;
-    testIdeas: string[];
-  };
-};
-
-const sampleForm = `<form action="/contact" method="POST">
-  <input name="name" type="text" required placeholder="Your name" />
-  <input name="email" type="email" required placeholder="Email address" />
-  <textarea name="message" required placeholder="How can we help?"></textarea>
-  <button type="submit">Send message</button>
-</form>`;
-
-const riskyForm = `<form action="/checkout" method="POST">
-  <input name="fullName" type="text" required placeholder="Full name" />
-  <input name="email" type="email" required placeholder="Email address" />
-  <input name="creditCard" type="text" required placeholder="Credit card number" />
-  <input name="cvv" type="password" required placeholder="CVV" />
-  <input name="billingAddress" type="text" required placeholder="Billing address" />
-  <input name="medicalNotes" type="text" placeholder="Medical notes or accessibility needs" />
-  <input name="attachment" type="file" />
-  <button type="submit">Pay now</button>
-</form>`;
-
-function riskLabelClasses(risk: Report["riskLevel"]) {
-  if (risk === "high") {
-    return "border-red-500/30 bg-red-500/10 text-red-200";
-  }
-
-  if (risk === "medium") {
-    return "border-yellow-500/30 bg-yellow-500/10 text-yellow-100";
-  }
-
-  return "border-emerald-500/30 bg-emerald-500/10 text-emerald-100";
-}
-
-function checklistStatusClasses(status: ChecklistStatus) {
-  if (status === "pass") {
-    return "border-emerald-500/30 bg-emerald-500/10 text-emerald-100";
-  }
-
-  if (status === "warning") {
-    return "border-yellow-500/30 bg-yellow-500/10 text-yellow-100";
-  }
-
-  return "border-red-500/30 bg-red-500/10 text-red-100";
-}
-
-function checklistStatusLabel(status: ChecklistStatus) {
-  if (status === "pass") return "Pass";
-  if (status === "warning") return "Review";
-  return "Fix";
-}
-
-function CodeCard({
-  title,
-  value,
-  copied,
-  onCopy,
-}: {
-  title: string;
-  value: string;
-  copied: string | null;
-  onCopy: (title: string, value: string) => void;
-}) {
-  return (
-    <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-6">
-      <div className="flex items-center justify-between gap-4">
-        <h3 className="font-semibold">{title}</h3>
-
-        <button
-          onClick={() => onCopy(title, value)}
-          className="rounded-full border border-white/10 px-3 py-1.5 text-xs font-medium text-slate-200 transition hover:bg-white/10"
-        >
-          {copied === title ? "Copied!" : "Copy"}
-        </button>
-      </div>
-
-      <pre className="mt-4 max-h-[420px] overflow-auto rounded-2xl bg-slate-900 p-4 text-xs leading-5 text-slate-300">
-        {value}
-      </pre>
-    </div>
-  );
-}
-
-function ReportMetric({
-  label,
-  value,
-  detail,
-}: {
-  label: string;
-  value: string;
-  detail: string;
-}) {
-  return (
-    <div className="rounded-2xl border border-white/10 bg-slate-900/70 p-4">
-      <p className="text-xs uppercase tracking-[0.22em] text-slate-500">
-        {label}
-      </p>
-      <p className="mt-2 text-2xl font-semibold text-white">{value}</p>
-      <p className="mt-1 text-sm text-slate-400">{detail}</p>
-    </div>
-  );
-}
+const pricing = [
+  {
+    name: "Free",
+    price: "$0",
+    description: "For trying aioengine locally.",
+    features: [
+      "Run aioengine Check",
+      "Basic setup warnings",
+      "Top repo risk signals",
+      "Starter AI safety checklist",
+    ],
+  },
+  {
+    name: "Solo",
+    price: "$12/mo",
+    description: "For solo builders using AI coding tools.",
+    features: [
+      "Full local reports",
+      "Generated Claude/Cursor rules",
+      "Risky file detection",
+      "Out-of-scope change warnings",
+    ],
+    highlighted: true,
+  },
+  {
+    name: "Pro",
+    price: "$29/mo",
+    description: "For serious indie devs and small SaaS builders.",
+    features: [
+      "GitHub PR checks",
+      "Saved project rules",
+      "AI change reports",
+      "Up to 3 repos",
+    ],
+  },
+];
 
 export default function Home() {
-  const [source, setSource] = useState(sampleForm);
-  const [report, setReport] = useState<Report | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-  const [copied, setCopied] = useState<string | null>(null);
+  return (
+    <main className="min-h-screen bg-[#071312] text-white">
+      <section className="mx-auto flex w-full max-w-6xl flex-col gap-16 px-6 py-8 sm:px-8 lg:px-10">
+        <nav className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl border border-cyan-300/30 bg-cyan-300/10 text-sm font-bold text-cyan-200">
+              aio
+            </div>
+            <span className="text-lg font-semibold tracking-tight">
+              {siteConfig.name}
+            </span>
+          </div>
 
-  async function copyToClipboard(title: string, value: string) {
-    try {
-      await navigator.clipboard.writeText(value);
-      setCopied(title);
+          <a
+            href="#pricing"
+            className="rounded-full border border-white/15 px-4 py-2 text-sm text-white/80 transition hover:border-cyan-300/50 hover:text-white"
+          >
+            Pricing
+          </a>
+        </nav>
 
-      window.setTimeout(() => {
-        setCopied(null);
-      }, 1500);
-    } catch {
-      setError("Could not copy to clipboard.");
-    }
-  }
-
-  function downloadReport() {
-    if (!report) return;
-
-    const reportJson = JSON.stringify(report, null, 2);
-    const blob = new Blob([reportJson], {
-      type: "application/json",
-    });
-
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-
-    link.href = url;
-    link.download = `aioengine-form-report-${new Date()
-      .toISOString()
-      .slice(0, 10)}.json`;
-
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-
-    URL.revokeObjectURL(url);
-  }
-
-  async function analyze() {
-    setLoading(true);
-    setError("");
-    setReport(null);
-
-    try {
-      const response = await fetch("/api/analyze-form", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ source }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || "Something went wrong.");
-      }
-
-      setReport(data);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Something went wrong.");
-    } finally {
-      setLoading(false);
-    }
-  }
-    return (
-    <main className="min-h-screen bg-slate-950 text-white">
-      <section className="mx-auto flex w-full max-w-6xl flex-col gap-10 px-6 py-10">
-        <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-8 shadow-2xl shadow-cyan-500/5">
-          <p className="mb-4 text-sm font-medium uppercase tracking-[0.3em] text-cyan-300">
-            aioengine Forms
-          </p>
-
-          <div className="grid gap-8 lg:grid-cols-[1.05fr_0.95fr] lg:items-end">
-            <div>
-              <h1 className="text-4xl font-semibold tracking-tight sm:text-6xl">
-                Turn website forms into safe AI-agent actions.
-              </h1>
-
-              <p className="mt-5 max-w-2xl text-lg leading-8 text-slate-300">
-                Paste a form. aioengine detects fields, flags risk, and
-                generates developer-ready validation, action manifests, route
-                handlers, test ideas, and readiness checks.
-              </p>
+        <section className="grid gap-10 py-12 lg:grid-cols-[1.15fr_0.85fr] lg:items-center">
+          <div>
+            <div className="mb-5 inline-flex rounded-full border border-cyan-300/20 bg-cyan-300/10 px-4 py-2 text-sm text-cyan-100">
+              AI change control for developers
             </div>
 
-            <div className="rounded-2xl border border-cyan-400/20 bg-cyan-400/10 p-5 text-sm leading-6 text-cyan-50">
-              <p className="font-semibold">MVP goal</p>
-              <p className="mt-2 text-cyan-100/90">
-                This first version uses deterministic safety rules. Later, we
-                add OpenAI analysis, saved reports, paid exports, and Vercel
-                deployment checks.
-              </p>
+            <h1 className="max-w-4xl text-5xl font-semibold tracking-tight text-white sm:text-6xl lg:text-7xl">
+              Review AI-generated code before you trust it.
+            </h1>
+
+            <p className="mt-6 max-w-2xl text-lg leading-8 text-white/70">
+              aioengine helps developers using Claude Code, Cursor, Codex,
+              Copilot, and MCP tools catch risky, out-of-scope, and sensitive
+              code changes before they commit or merge.
+            </p>
+
+            <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+              <a
+                href="#start"
+                className="rounded-full bg-cyan-300 px-6 py-3 text-center text-sm font-semibold text-[#071312] transition hover:bg-cyan-200"
+              >
+                Start with a free check
+              </a>
+              <a
+                href="#tools"
+                className="rounded-full border border-white/15 px-6 py-3 text-center text-sm font-semibold text-white/85 transition hover:border-white/30 hover:text-white"
+              >
+                See the toolkit
+              </a>
             </div>
           </div>
-        </div>
 
-        <div className="grid gap-6 lg:grid-cols-2">
-          <section className="rounded-3xl border border-white/10 bg-white/[0.03] p-6">
-            <div className="flex items-center justify-between gap-4">
-              <div>
-                <h2 className="text-xl font-semibold">Paste form code</h2>
-                <p className="mt-1 text-sm text-slate-400">
-                  Try a contact form, quote form, booking form, or signup form.
+          <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-5 shadow-2xl shadow-cyan-950/40">
+            <div className="rounded-2xl border border-white/10 bg-[#081817] p-5 font-mono text-sm text-white/80">
+              <div className="text-cyan-200">$ npx aioengine check</div>
+              <div className="mt-5 text-white">aioengine Check</div>
+              <div className="mt-2 text-white/50">
+                AI coding setup score:{" "}
+                <span className="text-yellow-200">68/100</span>
+              </div>
+
+              <div className="mt-6 text-red-200">Critical</div>
+              <div className="mt-2 text-white/65">
+                ✗ Env files detected at repo root
+              </div>
+              <div className="text-white/65">
+                ✗ No AI rules found for Claude or Cursor
+              </div>
+
+              <div className="mt-5 text-yellow-200">Review recommended</div>
+              <div className="mt-2 text-white/65">
+                ! package.json changed during a UI task
+              </div>
+              <div className="text-white/65">
+                ! Auth files changed outside requested scope
+              </div>
+
+              <div className="mt-6 rounded-xl border border-cyan-300/20 bg-cyan-300/10 p-4 text-cyan-100">
+                Next: run aioengine Review before committing.
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section className="grid gap-4 rounded-3xl border border-white/10 bg-white/[0.04] p-6 sm:grid-cols-3">
+          <Metric value="84%" label="of developers use or plan to use AI tools" />
+          <Metric value="85%" label="say review and validation are now the bottleneck" />
+          <Metric value="1 goal" label="move fast with AI without losing repo control" />
+        </section>
+
+        <section id="tools" className="py-8">
+          <div className="max-w-2xl">
+            <p className="text-sm font-semibold uppercase tracking-[0.2em] text-cyan-200">
+              The toolkit
+            </p>
+            <h2 className="mt-3 text-3xl font-semibold tracking-tight sm:text-4xl">
+              One CLI. Multiple safety layers.
+            </h2>
+            <p className="mt-4 text-white/65">
+              aioengine is not another coding assistant. It is the review layer
+              for developers already using AI coding tools.
+            </p>
+          </div>
+
+          <div className="mt-8 grid gap-4 md:grid-cols-2">
+            {tools.map((tool) => (
+              <div
+                key={tool.name}
+                className="rounded-3xl border border-white/10 bg-white/[0.04] p-6"
+              >
+                <div className="flex items-start justify-between gap-4">
+                  <h3 className="text-2xl font-semibold">{tool.name}</h3>
+                  <span className="rounded-full border border-cyan-300/20 bg-cyan-300/10 px-3 py-1 text-xs text-cyan-100">
+                    {tool.label}
+                  </span>
+                </div>
+                <p className="mt-4 leading-7 text-white/65">
+                  {tool.description}
                 </p>
               </div>
+            ))}
+          </div>
+        </section>
 
-              <div className="flex flex-wrap gap-2">
-                <button
-                  onClick={() => {
-                    setSource(sampleForm);
-                    setReport(null);
-                    setError("");
-                  }}
-                  className="rounded-full border border-white/10 px-4 py-2 text-sm text-slate-200 hover:bg-white/10"
-                >
-                  Safe sample
-                </button>
+        <section className="grid gap-8 py-8 lg:grid-cols-[0.8fr_1.2fr] lg:items-start">
+          <div>
+            <p className="text-sm font-semibold uppercase tracking-[0.2em] text-cyan-200">
+              Why it exists
+            </p>
+            <h2 className="mt-3 text-3xl font-semibold tracking-tight sm:text-4xl">
+              AI can write code faster than you can review it.
+            </h2>
+            <p className="mt-4 leading-7 text-white/65">
+              That is the new bottleneck. aioengine helps you quickly identify
+              the parts of an AI-generated change that deserve human attention.
+            </p>
+          </div>
 
-                <button
-                  onClick={() => {
-                    setSource(riskyForm);
-                    setReport(null);
-                    setError("");
-                  }}
-                  className="rounded-full border border-red-400/30 bg-red-400/10 px-4 py-2 text-sm text-red-100 hover:bg-red-400/20"
-                >
-                  Risky sample
-                </button>
+          <div className="space-y-3">
+            {risks.map((risk) => (
+              <div
+                key={risk}
+                className="rounded-2xl border border-white/10 bg-white/[0.04] p-4 text-white/75"
+              >
+                {risk}
               </div>
-            </div>
+            ))}
+          </div>
+        </section>
 
-            <textarea
-              value={source}
-              onChange={(event) => setSource(event.target.value)}
-              className="mt-5 h-[420px] w-full rounded-2xl border border-white/10 bg-slate-900 p-4 font-mono text-sm leading-6 text-slate-100 outline-none ring-cyan-400/20 placeholder:text-slate-600 focus:ring-4"
-              spellCheck={false}
-            />
+        <section
+          id="start"
+          className="rounded-3xl border border-cyan-300/20 bg-cyan-300/10 p-6 sm:p-8"
+        >
+          <p className="text-sm font-semibold uppercase tracking-[0.2em] text-cyan-100">
+            Start free
+          </p>
+          <h2 className="mt-3 text-3xl font-semibold tracking-tight">
+            Run your first check locally.
+          </h2>
+          <p className="mt-4 max-w-2xl leading-7 text-white/70">
+            The first aioengine command will scan your repo for AI coding setup
+            risks. Review and Scope become the paid workflow once PR checks and
+            saved reports are available.
+          </p>
 
-            <button
-              onClick={analyze}
-              disabled={loading}
-              className="mt-5 w-full rounded-2xl bg-cyan-300 px-5 py-4 font-semibold text-slate-950 transition hover:bg-cyan-200 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {loading ? "Analyzing..." : "Analyze form"}
-            </button>
+          <div className="mt-6 rounded-2xl border border-white/10 bg-[#071312] p-5 font-mono text-sm text-cyan-100">
+            npx aioengine check
+          </div>
+        </section>
 
-            {error ? (
-              <p className="mt-4 rounded-2xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-100">
-                {error}
-              </p>
-            ) : null}
-          </section>
+        <section id="pricing" className="py-8">
+          <div className="max-w-2xl">
+            <p className="text-sm font-semibold uppercase tracking-[0.2em] text-cyan-200">
+              Pricing direction
+            </p>
+            <h2 className="mt-3 text-3xl font-semibold tracking-tight sm:text-4xl">
+              Simple monthly pricing for AI-assisted builders.
+            </h2>
+          </div>
 
-          <section className="rounded-3xl border border-white/10 bg-white/[0.03] p-6">
-            <div className="flex flex-wrap items-start justify-between gap-4">
-              <div>
-                <h2 className="text-xl font-semibold">Report</h2>
-                <p className="mt-1 text-sm text-slate-400">
-                  Your safety and agent-readiness output appears here.
+          <div className="mt-8 grid gap-4 lg:grid-cols-3">
+            {pricing.map((plan) => (
+              <div
+                key={plan.name}
+                className={`rounded-3xl border p-6 ${
+                  plan.highlighted
+                    ? "border-cyan-300/40 bg-cyan-300/10"
+                    : "border-white/10 bg-white/[0.04]"
+                }`}
+              >
+                <h3 className="text-xl font-semibold">{plan.name}</h3>
+                <div className="mt-4 text-4xl font-semibold">{plan.price}</div>
+                <p className="mt-3 text-sm leading-6 text-white/65">
+                  {plan.description}
                 </p>
+
+                <ul className="mt-6 space-y-3 text-sm text-white/75">
+                  {plan.features.map((feature) => (
+                    <li key={feature}>✓ {feature}</li>
+                  ))}
+                </ul>
               </div>
+            ))}
+          </div>
+        </section>
 
-              {report ? (
-                <button
-                  onClick={downloadReport}
-                  className="rounded-full border border-cyan-400/30 bg-cyan-400/10 px-4 py-2 text-sm font-medium text-cyan-100 transition hover:bg-cyan-400/20"
-                >
-                  Download report
-                </button>
-              ) : null}
-            </div>
-
-            {!report ? (
-              <div className="mt-5 flex h-[500px] items-center justify-center rounded-2xl border border-dashed border-white/10 bg-slate-900/60 p-8 text-center text-slate-500">
-                Paste a form and click Analyze.
-              </div>
-            ) : (
-              <div className="mt-5 space-y-5">
-                <div
-                  className={`rounded-2xl border p-5 ${riskLabelClasses(
-                    report.riskLevel
-                  )}`}
-                >
-                  <div className="flex flex-wrap items-center justify-between gap-3">
-                    <p className="text-sm uppercase tracking-[0.25em]">
-                      {report.riskLevel} risk
-                    </p>
-                    <p className="text-sm">
-                      Confidence: {Math.round(report.confidence * 100)}%
-                    </p>
-                  </div>
-                  <p className="mt-3 text-lg font-semibold">
-                    {report.summary}
-                  </p>
-                </div>
-
-                <div className="grid gap-3 sm:grid-cols-3">
-                  <ReportMetric
-                    label="Fields"
-                    value={String(report.fields.length)}
-                    detail="Detected inputs"
-                  />
-
-                  <ReportMetric
-                    label="Issues"
-                    value={String(report.issues.length)}
-                    detail="Safety concerns"
-                  />
-
-                  <ReportMetric
-                    label="Agent status"
-                    value={report.riskLevel === "low" ? "Ready" : "Review"}
-                    detail={
-                      report.riskLevel === "low"
-                        ? "Safe with validation"
-                        : "Confirm before action"
-                    }
-                  />
-                </div>
-
-                <div className="rounded-2xl border border-white/10 bg-slate-900/70 p-5">
-                  <h3 className="font-semibold">Detected fields</h3>
-
-                  <div className="mt-4 space-y-3">
-                    {report.fields.map((field) => (
-                      <div
-                        key={`${field.name}-${field.type}`}
-                        className="rounded-xl border border-white/10 bg-white/[0.03] p-4"
-                      >
-                        <div className="flex flex-wrap items-center gap-2">
-                          <span className="font-mono text-cyan-200">
-                            {field.name}
-                          </span>
-                          <span className="rounded-full bg-white/10 px-2 py-1 text-xs text-slate-300">
-                            {field.type}
-                          </span>
-                          {field.required ? (
-                            <span className="rounded-full bg-purple-500/20 px-2 py-1 text-xs text-purple-100">
-                              required
-                            </span>
-                          ) : null}
-                        </div>
-
-                        {field.risks.length > 0 ? (
-                          <div className="mt-3 flex flex-wrap gap-2">
-                            {field.risks.map((risk) => (
-                              <span
-                                key={risk}
-                                className="rounded-full border border-yellow-400/20 bg-yellow-400/10 px-2 py-1 text-xs text-yellow-100"
-                              >
-                                {risk}
-                              </span>
-                            ))}
-                          </div>
-                        ) : (
-                          <p className="mt-3 text-sm text-slate-500">
-                            No obvious sensitive field risk detected.
-                          </p>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="rounded-2xl border border-white/10 bg-slate-900/70 p-5">
-                  <h3 className="font-semibold">Issues</h3>
-
-                  {report.issues.length === 0 ? (
-                    <p className="mt-3 text-sm text-slate-400">
-                      No major issues detected.
-                    </p>
-                  ) : (
-                    <div className="mt-4 space-y-3">
-                      {report.issues.map((issue) => (
-                        <div
-                          key={issue.title}
-                          className="rounded-xl border border-white/10 bg-white/[0.03] p-4"
-                        >
-                          <p className="text-sm uppercase tracking-[0.2em] text-slate-400">
-                            {issue.severity}
-                          </p>
-                          <p className="mt-2 font-semibold">{issue.title}</p>
-                          <p className="mt-2 text-sm text-slate-300">
-                            {issue.detail}
-                          </p>
-                          <p className="mt-2 text-sm text-cyan-200">
-                            {issue.suggestion}
-                          </p>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                <div className="rounded-2xl border border-white/10 bg-slate-900/70 p-5">
-                  <h3 className="font-semibold">
-                    Developer readiness checklist
-                  </h3>
-                  <p className="mt-1 text-sm text-slate-400">
-                    Practical checks before this form should be exposed to AI
-                    agents.
-                  </p>
-
-                  <div className="mt-4 space-y-3">
-                    {report.readinessChecklist.map((item) => (
-                      <div
-                        key={item.label}
-                        className="rounded-xl border border-white/10 bg-white/[0.03] p-4"
-                      >
-                        <div className="flex flex-wrap items-center justify-between gap-3">
-                          <p className="font-medium">{item.label}</p>
-
-                          <span
-                            className={`rounded-full border px-3 py-1 text-xs font-medium ${checklistStatusClasses(
-                              item.status
-                            )}`}
-                          >
-                            {checklistStatusLabel(item.status)}
-                          </span>
-                        </div>
-
-                        <p className="mt-2 text-sm text-slate-300">
-                          {item.detail}
-                        </p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            )}
-          </section>
-        </div>
-
-        {report ? (
-          <section className="grid gap-6 lg:grid-cols-2">
-            <CodeCard
-              title="Generated Zod schema"
-              value={report.generated.zodSchema}
-              copied={copied}
-              onCopy={copyToClipboard}
-            />
-
-            <CodeCard
-              title="AI action manifest"
-              value={report.generated.actionManifest}
-              copied={copied}
-              onCopy={copyToClipboard}
-            />
-
-            <CodeCard
-              title="Route handler"
-              value={report.generated.routeHandler}
-              copied={copied}
-              onCopy={copyToClipboard}
-            />
-
-            <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-6">
-              <div className="flex items-center justify-between gap-4">
-                <h3 className="font-semibold">Test ideas</h3>
-
-                <button
-                  onClick={() =>
-                    copyToClipboard(
-                      "Test ideas",
-                      report.generated.testIdeas
-                        .map((idea, index) => `${index + 1}. ${idea}`)
-                        .join("\n")
-                    )
-                  }
-                  className="rounded-full border border-white/10 px-3 py-1.5 text-xs font-medium text-slate-200 transition hover:bg-white/10"
-                >
-                  {copied === "Test ideas" ? "Copied!" : "Copy"}
-                </button>
-              </div>
-
-              <ul className="mt-4 space-y-3 text-sm text-slate-300">
-                {report.generated.testIdeas.map((idea) => (
-                  <li
-                    key={idea}
-                    className="rounded-xl border border-white/10 bg-slate-900 p-3"
-                  >
-                    {idea}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </section>
-        ) : null}
+        <footer className="border-t border-white/10 py-8 text-sm text-white/45">
+          © {new Date().getFullYear()} aioengine. AI change control for
+          developers.
+        </footer>
       </section>
     </main>
+  );
+}
+
+function Metric({ value, label }: { value: string; label: string }) {
+  return (
+    <div className="rounded-2xl border border-white/10 bg-[#071312]/50 p-5">
+      <div className="text-3xl font-semibold text-cyan-200">{value}</div>
+      <div className="mt-2 text-sm leading-6 text-white/60">{label}</div>
+    </div>
   );
 }
