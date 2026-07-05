@@ -438,34 +438,96 @@ function getChangedFiles(root) {
 }
 
 function inferTaskProfile(task) {
-  const lower = task.toLowerCase();
+  const cleanTask = task.toLowerCase();
 
   const profiles = [
-        {
+    {
+      id: "ui",
+      label: "UI / frontend task",
+      strongKeywords: [
+        "landing page",
+        "home page",
+        "hero",
+        "headline",
+        "cta",
+        "navbar",
+        "footer",
+        "layout",
+        "mobile",
+        "responsive",
+        "pricing page",
+        "dashboard header",
+      ],
+      keywords: [
+        "ui",
+        "frontend",
+        "front end",
+        "page",
+        "component",
+        "style",
+        "css",
+        "tailwind",
+        "design",
+        "copy",
+        "button",
+        "card",
+        "section",
+      ],
+      allowed: [
+        "src/app/",
+        "src/components/",
+        "src/siteconfig.ts",
+        "public/",
+        "next-env.d.ts",
+      ],
+      sensitive: [
+        ".env",
+        "auth",
+        "stripe",
+        "billing",
+        "payment",
+        "supabase",
+        "migration",
+        "middleware",
+        "package.json",
+        ".github/workflows",
+      ],
+    },
+    {
       id: "cli",
       label: "CLI / tooling task",
-      keywords: [
+      strongKeywords: [
         "cli",
         "command",
+        "terminal command",
+        "npm package",
+        "package executable",
+        "bin",
+        "commander",
+        "aioengine init",
+        "aioengine check",
+        "aioengine review",
+        "aioengine scope",
+        "aioengine rules",
+      ],
+      keywords: [
         "terminal",
         "init",
         "check",
         "review",
         "scope",
         "rules",
-        "package",
         "script",
         "npm",
-        "bin",
-        "commander",
-        "aioengine",
+        "package",
+        "developer tool",
+        "tooling",
+        "publish",
       ],
       allowed: [
         "packages/cli/",
         "package.json",
         "package-lock.json",
-        "src/index.js",
-        "readme",
         ".aioengine/",
         "CLAUDE.md",
         ".cursor/",
@@ -483,178 +545,123 @@ function inferTaskProfile(task) {
       ],
     },
     {
-      id: "ui",
-      label: "UI / frontend task",
-      keywords: [
-        "ui",
-        "layout",
-        "style",
-        "design",
-        "button",
-        "card",
-        "page",
-        "copy",
-        "text",
-        "color",
-        "colour",
-        "spacing",
-        "responsive",
-        "navbar",
-        "footer",
-        "hero",
-        "landing",
-        "pricing",
-        "headline",
-      ],
-      allowed: [
-        "app/",
-        "pages/",
-        "components/",
-        "styles/",
-        "public/",
-        "src/app/",
-        "src/components/",
-        "src/styles/",
-        ".css",
-        ".tsx",
-        ".jsx",
-      ],
-      sensitive: [
-        "api/",
-        "auth",
-        "session",
-        "stripe",
-        "billing",
-        "payment",
-        "supabase",
-        "migration",
-        "schema",
-        "rls",
-        ".env",
-        "package.json",
-        "package-lock.json",
-        "middleware",
-        ".github/workflows",
-        "next.config",
-        "vercel",
-      ],
-    },
-    {
       id: "docs",
       label: "Docs / copy task",
-      keywords: [
-        "docs",
-        "readme",
-        "copy",
-        "text",
-        "wording",
-        "content",
-        "landing page copy",
-        "headline",
-        "description",
-      ],
-      allowed: [
-        ".md",
-        "readme",
-        "app/",
-        "src/app/",
-        "components/",
-        "src/components/",
-      ],
+      strongKeywords: ["readme", "documentation", "docs"],
+      keywords: ["copy", "text", "wording", "content", "instructions"],
+      allowed: ["README", "readme", "docs/", ".md", "CLAUDE.md"],
       sensitive: [
-        "api/",
+        ".env",
         "auth",
         "stripe",
         "billing",
         "payment",
         "supabase",
         "migration",
-        ".env",
-        "package.json",
         "middleware",
+        "package.json",
       ],
     },
     {
       id: "backend",
       label: "Backend / API task",
+      strongKeywords: ["api route", "route handler", "database", "server action"],
       keywords: [
         "api",
-        "route",
-        "server",
         "backend",
+        "server",
         "database",
         "supabase",
+        "schema",
+        "auth",
         "webhook",
         "stripe",
-        "auth",
-        "login",
-        "billing",
       ],
       allowed: [
-        "api/",
-        "server",
-        "lib/",
+        "src/app/api/",
         "src/lib/",
-        "supabase",
-        "schema",
-        "migration",
-        "middleware",
+        "supabase/",
+        "prisma/",
         "package.json",
       ],
-      sensitive: [".env", "billing", "payment", "stripe", "auth", "rls", "migration"],
-    },
-  ];
-
-  const matched = profiles.find((profile) =>
-    profile.keywords.some((keyword) => lower.includes(keyword))
-  );
-
-  return (
-    matched ?? {
-      id: "unknown",
-      label: "Unknown / general task",
-      keywords: [],
-      allowed: [],
       sensitive: [
         ".env",
-        "auth",
-        "session",
         "stripe",
         "billing",
         "payment",
-        "supabase",
+        "auth",
         "migration",
         "schema",
         "rls",
         "middleware",
-        "package.json",
-        "package-lock.json",
-        ".github/workflows",
       ],
+    },
+  ];
+
+  const scoredProfiles = profiles
+    .map((profile) => {
+      const strongScore = profile.strongKeywords.filter((keyword) =>
+        cleanTask.includes(keyword)
+      ).length;
+
+      const normalScore = profile.keywords.filter((keyword) =>
+        cleanTask.includes(keyword)
+      ).length;
+
+      return {
+        ...profile,
+        score: strongScore * 3 + normalScore,
+      };
+    })
+    .filter((profile) => profile.score > 0)
+    .sort((a, b) => b.score - a.score);
+
+  return (
+    scoredProfiles[0] ?? {
+      id: "unknown",
+      label: "Unknown / general task",
+      allowed: [],
+      sensitive: [],
     }
   );
 }
 
 function isProbablyOutOfScope(file, profile) {
-  const lower = file.toLowerCase();
-
-  if (profile.id === "unknown") {
+  if (!profile || profile.id === "unknown") {
     return false;
   }
 
-  const touchesSensitiveArea = profile.sensitive.some((pattern) =>
-    lower.includes(pattern)
-  );
+  const normalizedFile = file.replaceAll("\\", "/").toLowerCase();
 
-  if (!touchesSensitiveArea) {
+  const allowedPatterns = profile.allowed ?? [];
+  const sensitivePatterns = profile.sensitive ?? [];
+
+  const isAllowed = allowedPatterns.some((pattern) => {
+    const normalizedPattern = pattern.replaceAll("\\", "/").toLowerCase();
+
+    if (normalizedPattern.endsWith("/")) {
+      return normalizedFile.startsWith(normalizedPattern);
+    }
+
+    return (
+      normalizedFile === normalizedPattern ||
+      normalizedFile.includes(normalizedPattern)
+    );
+  });
+
+  if (isAllowed) {
     return false;
   }
 
-  const explicitlyAllowed = profile.allowed.some((pattern) =>
-    lower.includes(pattern)
+  const isSensitive = sensitivePatterns.some((pattern) =>
+    normalizedFile.includes(pattern.toLowerCase())
   );
 
-  return !explicitlyAllowed;
+  if (isSensitive) {
+    return true;
+  }
+
+  return allowedPatterns.length > 0;
 }
 
 function isRiskyFile(file) {
