@@ -169,10 +169,12 @@ export default function Home() {
 
             <div className="mt-7 flex w-full flex-col gap-3 sm:flex-row sm:items-center">
               <a
-                href="#start"
-                className="inline-flex w-full items-center justify-center rounded-full bg-gradient-to-r from-sky-400 via-cyan-300 to-emerald-300 px-5 py-3 text-sm font-semibold text-[#061211] shadow-lg shadow-cyan-500/20 transition hover:scale-[1.01] sm:w-auto"
+              href="https://www.npmjs.com/package/aioengine"
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex w-full items-center justify-center rounded-full bg-gradient-to-r from-sky-400 via-cyan-300 to-emerald-300 px-5 py-3 text-sm font-semibold text-[#061211] shadow-lg shadow-cyan-500/20 transition hover:scale-[1.01] sm:w-auto"
               >
-                Start with npx
+             View on npm
               </a>
               <a
                 href="#toolkit"
