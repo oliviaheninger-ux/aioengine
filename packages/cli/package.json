@@ -23,18 +23,19 @@
   "author": "",
   "license": "UNLICENSED",
   "type": "module",
-  "bin": {
-    "aioengine": "./src/index.js"
-  },
   "dependencies": {
     "commander": "^15.0.0",
     "picocolors": "^1.1.1"
   },
   "files": [
     "src",
-    "README.md"
+    "README.md",
+    "bin"
   ],
   "engines": {
     "node": ">=18"
+  },
+  "bin": {
+    "aioengine": "bin/aioengine.js"
   }
 }
