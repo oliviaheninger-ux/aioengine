@@ -62,7 +62,6 @@ function runInit() {
 
   const aioengineDir = ".aioengine";
   const configPath = path.join(aioengineDir, "config.json");
-  const claudePath = "CLAUDE.md";
   const cursorDir = ".cursor/rules";
   const cursorPath = path.join(cursorDir, "aioengine.mdc");
 
@@ -92,12 +91,7 @@ function runInit() {
     skipped.push(configPath);
   }
 
-  if (!exists(claudePath, root)) {
-    fs.writeFileSync(path.join(root, claudePath), getClaudeRules());
-    created.push(claudePath);
-  } else {
-    skipped.push(claudePath);
-  }
+  createClaudeRulesSafely(root, created, skipped);
 
   if (!exists(cursorDir, root)) {
     fs.mkdirSync(path.join(root, cursorDir), { recursive: true });
@@ -112,6 +106,14 @@ function runInit() {
 
   printSection("Created", created, "green");
   printSection("Skipped", skipped, "yellow");
+
+  if (skipped.includes("CLAUDE.md already exists")) {
+    console.log(
+      `\n${pc.dim(
+        "aioengine did not modify your existing CLAUDE.md. Suggested Claude rules were saved to .aioengine/suggested-claude-rules.md if that file did not already exist."
+      )}`
+    );
+  }
 
   console.log(pc.bold("Next steps:"));
   console.log(`  1. Run ${pc.cyan("aioengine check")}`);
@@ -382,19 +384,13 @@ function runRules() {
 
   const root = getProjectRoot();
 
-  const claudePath = "CLAUDE.md";
   const cursorDir = ".cursor/rules";
   const cursorPath = path.join(cursorDir, "aioengine.mdc");
 
   const created = [];
   const skipped = [];
 
-  if (!exists(claudePath, root)) {
-    fs.writeFileSync(path.join(root, claudePath), getClaudeRules());
-    created.push(claudePath);
-  } else {
-    skipped.push(claudePath);
-  }
+  createClaudeRulesSafely(root, created, skipped);
 
   if (!exists(cursorDir, root)) {
     fs.mkdirSync(path.join(root, cursorDir), { recursive: true });
@@ -409,6 +405,14 @@ function runRules() {
 
   printSection("Created", created, "green");
   printSection("Skipped", skipped, "yellow");
+
+  if (skipped.includes("CLAUDE.md already exists")) {
+    console.log(
+      `\n${pc.dim(
+        "aioengine did not modify your existing CLAUDE.md. Suggested Claude rules were saved to .aioengine/suggested-claude-rules.md if that file did not already exist."
+      )}`
+    );
+  }
 
   console.log(pc.bold("Next step:"));
   console.log(`  Run ${pc.cyan("aioengine check")} again.`);
@@ -837,6 +841,37 @@ function getDefaultConfig() {
       warnOnDependencyChanges: true,
     },
   };
+}
+
+function createClaudeRulesSafely(root, created, skipped) {
+  const claudePath = path.join(root, "CLAUDE.md");
+  const aioengineDir = path.join(root, ".aioengine");
+  const suggestedPath = path.join(
+    root,
+    ".aioengine",
+    "suggested-claude-rules.md"
+  );
+
+  if (!fs.existsSync(aioengineDir)) {
+    fs.mkdirSync(aioengineDir, { recursive: true });
+    created.push(".aioengine");
+  }
+
+  if (!fs.existsSync(claudePath)) {
+    fs.writeFileSync(claudePath, getClaudeRules(), "utf8");
+    created.push("CLAUDE.md");
+    return;
+  }
+
+  skipped.push("CLAUDE.md already exists");
+
+  if (!fs.existsSync(suggestedPath)) {
+    fs.writeFileSync(suggestedPath, getClaudeRules(), "utf8");
+    created.push(".aioengine/suggested-claude-rules.md");
+    return;
+  }
+
+  skipped.push(".aioengine/suggested-claude-rules.md already exists");
 }
 
 function getClaudeRules() {
