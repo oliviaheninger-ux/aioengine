@@ -74,7 +74,7 @@ const workflow = [
 ];
 
 const pricing = [
-  {
+    {
     name: "Free",
     price: "$0",
     description: "Local AI coding checks for solo developers.",
@@ -86,7 +86,9 @@ const pricing = [
       "Claude and Cursor rule generation",
     ],
     cta: "Run npx aioengine check",
+    href: "https://www.npmjs.com/package/aioengine",
   },
+
   {
     name: "Solo",
     price: "$12/mo",
@@ -99,6 +101,7 @@ const pricing = [
       "Priority CLI updates",
     ],
     cta: "Coming soon",
+    href: "https://www.npmjs.com/package/aioengine",
   },
   {
     name: "Pro",
@@ -112,6 +115,7 @@ const pricing = [
       "CI/CD guardrails",
     ],
     cta: "Coming soon",
+    href: "https://www.npmjs.com/package/aioengine",
   },
 ];
 export default function Home() {
@@ -141,8 +145,10 @@ export default function Home() {
             </a>
           </nav>
 
-          <a
-            href="#start"
+           <a
+            href="https://www.npmjs.com/package/aioengine"
+            target="_blank"
+            rel="noreferrer"
             className="hidden rounded-full border border-white/15 px-4 py-2 text-sm font-medium text-white/90 transition hover:border-white/30 hover:bg-white/10 sm:inline-flex"
           >
             Start free
@@ -176,6 +182,7 @@ export default function Home() {
               >
              View on npm
               </a>
+
               <a
                 href="#toolkit"
                 className="inline-flex w-full items-center justify-center rounded-full border border-white/15 px-5 py-3 text-sm font-semibold text-white/90 transition hover:border-white/30 hover:bg-white/10 sm:w-auto"
@@ -439,9 +446,20 @@ export default function Home() {
                 </ul>
 
                 <div className="mt-6">
-                  <div className="inline-flex w-full items-center justify-center rounded-full border border-white/15 px-4 py-3 text-sm font-semibold text-white/80">
-                    {plan.cta}
-                  </div>
+                  {plan.href ? (
+                    <a
+                      href={plan.href}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex w-full items-center justify-center rounded-full border border-cyan-300/25 bg-cyan-300/10 px-4 py-3 text-sm font-semibold text-cyan-50 transition hover:border-cyan-300/40 hover:bg-cyan-300/15"
+                    >
+                      {plan.cta}
+                    </a>
+                  ) : (
+                    <div className="inline-flex w-full items-center justify-center rounded-full border border-white/15 px-4 py-3 text-sm font-semibold text-white/80">
+                      {plan.cta}
+                    </div>
+                  )}
                 </div>
               </div>
             ))}
@@ -466,12 +484,18 @@ export default function Home() {
             </div>
 
             <div className="min-w-0 rounded-3xl border border-white/10 bg-black/35 p-4">
-              <div className="flex min-w-0 items-start gap-2 rounded-2xl bg-white/[0.04] p-3 text-sm">
+              <a
+                href="https://www.npmjs.com/package/aioengine"
+                target="_blank"
+                rel="noreferrer"
+                aria-label="View aioengine on npm"
+                className="flex min-w-0 items-start gap-2 rounded-2xl bg-white/[0.04] p-3 text-sm transition hover:bg-white/[0.07]"
+              >
                 <span className="shrink-0 text-emerald-300">$</span>
                 <code className="block min-w-0 overflow-x-auto whitespace-nowrap text-cyan-100">
                   npx aioengine check
                 </code>
-              </div>
+              </a>
             </div>
           </div>
         </div>
