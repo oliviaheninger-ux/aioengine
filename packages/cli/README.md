@@ -4,14 +4,35 @@ AI change control for developers using Claude Code, Cursor, Codex, Copilot, and 
 
 aioengine helps you review AI-generated code before you trust it. It scans your repo for missing guardrails, checks changed files for risky edits, and flags when AI may have wandered outside the requested task.
 
+## Quick start
+
+Run aioengine in any JavaScript or TypeScript project:
+
+```bash
+npx aioengine check
+```
+
+Then set up AI coding guardrails:
+
+```bash
+npx aioengine init
+```
+
+After your AI coding tool makes changes, review them before committing:
+
+```bash
+npx aioengine scope "update landing page headline"
+npx aioengine review
+```
+
 ## Commands
 
 ```bash
-aioengine init
-aioengine check
-aioengine scope "add init command"
-aioengine review
-aioengine rules
+npx aioengine init
+npx aioengine check
+npx aioengine scope "add init command"
+npx aioengine review
+npx aioengine rules
 ```
 
 ## Why aioengine exists
@@ -43,7 +64,7 @@ CLAUDE.md
 Run:
 
 ```bash
-aioengine init
+npx aioengine init
 ```
 
 ## `aioengine check`
@@ -66,7 +87,7 @@ Checks for:
 Run:
 
 ```bash
-aioengine check
+npx aioengine check
 ```
 
 ## `aioengine scope`
@@ -76,10 +97,10 @@ Checks whether changed files match the task you gave your AI coding tool.
 Example:
 
 ```bash
-aioengine scope "update landing page headline"
+npx aioengine scope "update landing page headline"
 ```
 
-If the task sounds like a UI change but AI modified billing, database, env, dependency, or deployment files, aioengine will flag possible scope drift.
+If the task sounds like a UI change but AI modified billing, database, env, dependency, CLI, or deployment files, aioengine will flag possible scope drift.
 
 ## `aioengine review`
 
@@ -88,7 +109,7 @@ Reviews current uncommitted changes for risky files.
 Run:
 
 ```bash
-aioengine review
+npx aioengine review
 ```
 
 aioengine will flag changes to files that often deserve extra review, such as:
@@ -108,7 +129,7 @@ Generates starter AI coding rules for Claude Code and Cursor.
 Run:
 
 ```bash
-aioengine rules
+npx aioengine rules
 ```
 
 This creates or skips:
@@ -121,13 +142,13 @@ CLAUDE.md
 ## Example workflow
 
 ```bash
-aioengine init
-aioengine check
+npx aioengine init
+npx aioengine check
 
 # Ask Claude, Cursor, Codex, or another AI coding tool to make a change.
 
-aioengine scope "update landing page headline"
-aioengine review
+npx aioengine scope "update landing page headline"
+npx aioengine review
 ```
 
 ## Current status
