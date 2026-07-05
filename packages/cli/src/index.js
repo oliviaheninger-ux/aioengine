@@ -726,9 +726,35 @@ function findFiles(root, files) {
 }
 
 function packageScriptIncludes(root, scriptName) {
+  const packageJson = read("package.json", root);
+
+  if (!packageJson) {
+    return false;
+  }
+
   try {
-    const pkg = JSON.parse(read("package.json", root));
-    return Boolean(pkg.scripts?.[scriptName]);
+    const parsed = JSON.parse(packageJson);
+    const script = parsed.scripts?.[scriptName];
+
+    if (!script) {
+      return false;
+    }
+
+    if (scriptName === "test") {
+      const normalized = script.toLowerCase().replace(/\s+/g, " ").trim();
+
+      const fakeTestScripts = [
+        'echo "error: no test specified" && exit 1',
+        "echo 'error: no test specified' && exit 1",
+        "echo error: no test specified && exit 1",
+      ];
+
+      if (fakeTestScripts.includes(normalized)) {
+        return false;
+      }
+    }
+
+    return true;
   } catch {
     return false;
   }
