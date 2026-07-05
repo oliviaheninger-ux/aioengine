@@ -9,7 +9,8 @@
     "review": "node ./src/index.js review",
     "rules": "node ./src/index.js rules",
     "scope": "node ./src/index.js scope",
-    "init": "node ./src/index.js init"
+    "init": "node ./src/index.js init",
+    "ci": "node ./src/index.js ci"
   },
   "keywords": [
     "ai",

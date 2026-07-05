@@ -36,6 +36,12 @@ program
   });
 
 program
+  .command("ci")
+  .description("Run aioengine review checks in CI and pull request workflows.")
+  .option("--task <task>", "Task description to compare changed files against")
+  .action((options) => runCi(options));
+
+program
   .command("scope")
   .description("Check whether changed files match the requested task.")
   .argument("[task...]", "The task you asked the AI coding tool to do")
@@ -273,6 +279,112 @@ function runReview() {
   } else {
     printSection("Review recommended", reviewItems, "yellow");
   }
+}
+
+function runCi(options = {}) {
+  printHeader("aioengine CI");
+
+  const root = getProjectRoot();
+
+  if (!isInsideGitRepo()) {
+    console.log(
+      `${pc.red("✗")} No Git repo detected. aioengine ci must run inside a Git repository.`
+    );
+    process.exitCode = 1;
+    return;
+  }
+
+  const task = options.task || getCiTask();
+  const files = getCiChangedFiles(root);
+
+  console.log(`${pc.dim("Project:")} ${root}`);
+
+  if (isGitHubActions()) {
+    console.log(`${pc.dim("Environment:")} GitHub Actions`);
+  } else {
+    console.log(`${pc.dim("Environment:")} Local / unknown CI`);
+  }
+
+  if (task) {
+    console.log(`${pc.dim("Task:")} ${task}`);
+  } else {
+    console.log(
+      `${pc.yellow("!")} No task detected. Scope checks will be less precise.`
+    );
+  }
+
+  if (files.length === 0) {
+    console.log(pc.green("\nNo changed files found."));
+    return;
+  }
+
+  const profile = task ? inferTaskProfile(task) : null;
+  const riskyFiles = files.filter(isRiskyFile);
+  const outOfScopeFiles = profile
+    ? files.filter((file) => isProbablyOutOfScope(file, profile))
+    : [];
+
+  if (profile) {
+    console.log(`${pc.dim("Detected task type:")} ${profile.label}`);
+  }
+
+  console.log(`${pc.dim("Changed files:")} ${files.length}\n`);
+
+  for (const file of files) {
+    const risky = riskyFiles.includes(file);
+    const outOfScope = outOfScopeFiles.includes(file);
+
+    if (outOfScope) {
+      console.log(`  ${pc.red("✗")} ${file} ${pc.red("— possible scope drift")}`);
+    } else if (risky) {
+      console.log(`  ${pc.yellow("!")} ${file} ${pc.yellow("— review carefully")}`);
+    } else {
+      console.log(`  ${pc.green("✓")} ${file}`);
+    }
+  }
+
+  const hasScopeDrift = outOfScopeFiles.length > 0;
+  const hasRiskyFiles = riskyFiles.length > 0;
+
+  if (hasScopeDrift) {
+    console.log(pc.yellow("\nCI review recommended"));
+
+    printSection(
+      "Possible scope drift",
+      outOfScopeFiles.map(
+        (file) => `Possible out-of-scope file changed: ${file}`
+      ),
+      "warning"
+    );
+
+    if (hasRiskyFiles) {
+      printSection(
+        "Risky files",
+        riskyFiles.map((file) => `High-risk file changed: ${file}`),
+        "warning"
+      );
+    }
+
+    console.log(
+      pc.dim(
+        "\nRecommendation: Review these changes before merging. aioengine is failing this CI check because possible scope drift was detected."
+      )
+    );
+
+    process.exitCode = 1;
+    return;
+  }
+
+  if (hasRiskyFiles) {
+    console.log(
+      pc.yellow(
+        "\nRisky files were changed. aioengine is allowing this check to pass, but these files should receive extra human review."
+      )
+    );
+    return;
+  }
+
+  console.log(pc.green("\nNo obvious AI change-control issues detected."));
 }
 
 function runScope(task) {
@@ -930,6 +1042,98 @@ Do not add dependencies without a clear reason.
 
 For UI-only tasks, avoid backend, API, database, and config changes.
 `;
+}
+
+function isGitHubActions() {
+  return process.env.GITHUB_ACTIONS === "true";
+}
+
+function getCiTask() {
+  const explicitTask = process.env.AIOENGINE_TASK;
+
+  if (explicitTask) {
+    return explicitTask;
+  }
+
+  const eventPath = process.env.GITHUB_EVENT_PATH;
+
+  if (!eventPath || !fs.existsSync(eventPath)) {
+    return "";
+  }
+
+  try {
+    const event = JSON.parse(fs.readFileSync(eventPath, "utf8"));
+
+    return (
+      event.pull_request?.title ||
+      event.issue?.title ||
+      event.head_commit?.message ||
+      ""
+    );
+  } catch {
+    return "";
+  }
+}
+
+function getCiChangedFiles(root) {
+  if (isGitHubActions()) {
+    const files = getGitHubActionsChangedFiles(root);
+
+    if (files.length > 0) {
+      return files;
+    }
+  }
+
+  return getChangedFiles(root);
+}
+
+function getGitHubActionsChangedFiles(root) {
+  const baseRef = process.env.GITHUB_BASE_REF;
+  const beforeSha = process.env.GITHUB_EVENT_BEFORE;
+  const currentSha = process.env.GITHUB_SHA || "HEAD";
+
+  try {
+    if (baseRef) {
+      try {
+        execSync(`git fetch origin ${baseRef} --depth=1`, {
+          cwd: root,
+          stdio: "ignore",
+        });
+      } catch {
+        // The workflow may already have enough history.
+      }
+
+      return uniqueFiles(
+        execSync(`git diff --name-only origin/${baseRef}...HEAD`, {
+          cwd: root,
+          encoding: "utf8",
+        })
+          .split("\n")
+          .map((file) => file.trim())
+          .filter(Boolean)
+      );
+    }
+
+    if (beforeSha && currentSha) {
+      return uniqueFiles(
+        execSync(`git diff --name-only ${beforeSha} ${currentSha}`, {
+          cwd: root,
+          encoding: "utf8",
+        })
+          .split("\n")
+          .map((file) => file.trim())
+          .filter(Boolean)
+      );
+    }
+  } catch {
+    return [];
+  }
+
+  return [];
+}
+
+function uniqueFiles(files) {
+  return [...new Set(files)].sort();
 }
 
 function getCliVersion() {
