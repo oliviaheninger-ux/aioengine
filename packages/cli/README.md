@@ -25,6 +25,12 @@ npx aioengine scope "update landing page headline"
 npx aioengine review
 ```
 
+In CI or pull request workflows:
+
+```bash
+npx aioengine ci --task "update landing page headline"
+```
+
 ## Commands
 
 ```bash
@@ -32,6 +38,7 @@ npx aioengine init
 npx aioengine check
 npx aioengine scope "add init command"
 npx aioengine review
+npx aioengine ci --task "add init command"
 npx aioengine rules
 ```
 
@@ -39,7 +46,7 @@ npx aioengine rules
 
 AI coding tools can move fast, but review becomes the bottleneck.
 
-A simple prompt can lead to unexpected changes in sensitive files like auth, billing, database migrations, environment config, deployment settings, or dependency files.
+A simple prompt can lead to unexpected changes in sensitive files like auth, billing, database migrations, environment config, deployment settings, dependency files, or CI workflows.
 
 aioengine helps answer:
 
@@ -47,11 +54,13 @@ aioengine helps answer:
 - Did AI change files outside the task?
 - Did AI add or modify dependencies?
 - Does this repo have AI coding rules?
-- What should I review before committing?
+- What should I review before committing or merging?
 
 ## `aioengine init`
 
 Sets up aioengine in your repo.
+
+Creates missing files only. aioengine will not overwrite an existing `CLAUDE.md`.
 
 Creates:
 
@@ -59,6 +68,12 @@ Creates:
 .aioengine/config.json
 CLAUDE.md
 .cursor/rules/aioengine.mdc
+```
+
+If `CLAUDE.md` already exists, aioengine leaves it untouched and saves suggested rules to:
+
+```txt
+.aioengine/suggested-claude-rules.md
 ```
 
 Run:
@@ -122,6 +137,52 @@ aioengine will flag changes to files that often deserve extra review, such as:
 - dependency files
 - GitHub workflow files
 
+## `aioengine ci`
+
+Runs aioengine checks in CI or pull request workflows.
+
+Run:
+
+```bash
+npx aioengine ci --task "update landing page headline"
+```
+
+In GitHub Actions, aioengine will try to detect changed files from the pull request context. If a task is available from the PR title, event payload, or `AIOENGINE_TASK`, it can flag possible scope drift.
+
+By default:
+
+- possible scope drift fails the CI check
+- risky files warn but do not fail the CI check
+
+Example GitHub Actions step:
+
+```yaml
+- name: Run aioengine
+  run: npx aioengine ci
+```
+
+For more reliable PR diffs, use checkout with full history:
+
+```yaml
+- uses: actions/checkout@v4
+  with:
+    fetch-depth: 0
+
+- name: Run aioengine
+  run: npx aioengine ci
+```
+
+You can also pass a task manually:
+
+```yaml
+- uses: actions/checkout@v4
+  with:
+    fetch-depth: 0
+
+- name: Run aioengine
+  run: npx aioengine ci --task "update landing page headline"
+```
+
 ## `aioengine rules`
 
 Generates starter AI coding rules for Claude Code and Cursor.
@@ -132,11 +193,20 @@ Run:
 npx aioengine rules
 ```
 
-This creates or skips:
+Creates missing files only. aioengine will not overwrite an existing `CLAUDE.md`.
+
+If `CLAUDE.md` already exists, suggested Claude rules are saved to:
+
+```txt
+.aioengine/suggested-claude-rules.md
+```
+
+This command creates or skips:
 
 ```txt
 CLAUDE.md
 .cursor/rules/aioengine.mdc
+.aioengine/suggested-claude-rules.md
 ```
 
 ## Example workflow
@@ -149,6 +219,7 @@ npx aioengine check
 
 npx aioengine scope "update landing page headline"
 npx aioengine review
+npx aioengine ci --task "update landing page headline"
 ```
 
 ## Current status
