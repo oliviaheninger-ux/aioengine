@@ -1,10 +1,9 @@
 {
   "name": "aioengine",
   "version": "0.1.0",
-  "description": "",
-  "main": "index.js",
+  "description": "AI change control for developers using AI coding tools.",
+  "main": "./src/index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
     "dev": "node ./src/index.js",
     "check": "node ./src/index.js check",
     "review": "node ./src/index.js review",
@@ -12,9 +11,17 @@
     "scope": "node ./src/index.js scope",
     "init": "node ./src/index.js init"
   },
-  "keywords": [],
+  "keywords": [
+    "ai",
+    "ai-coding",
+    "cli",
+    "code-review",
+    "cursor",
+    "claude",
+    "developer-tools"
+  ],
   "author": "",
-  "license": "ISC",
+  "license": "UNLICENSED",
   "type": "module",
   "bin": {
     "aioengine": "./src/index.js"
@@ -22,5 +29,12 @@
   "dependencies": {
     "commander": "^15.0.0",
     "picocolors": "^1.1.1"
+  },
+  "files": [
+    "src",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=18"
   }
 }
