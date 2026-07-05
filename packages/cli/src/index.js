@@ -5,13 +5,14 @@ import pc from "picocolors";
 import fs from "node:fs";
 import path from "node:path";
 import { execSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
 
 const program = new Command();
 
 program
   .name("aioengine")
   .description("AI change control for developers using AI coding tools.")
-  .version("0.1.0");
+  .version(getCliVersion());
 
 program
   .command("init")
@@ -894,4 +895,17 @@ Do not add dependencies without a clear reason.
 
 For UI-only tasks, avoid backend, API, database, and config changes.
 `;
+}
+
+function getCliVersion() {
+  try {
+    const currentFile = fileURLToPath(import.meta.url);
+    const currentDir = path.dirname(currentFile);
+    const packagePath = path.join(currentDir, "..", "package.json");
+    const packageJson = JSON.parse(fs.readFileSync(packagePath, "utf8"));
+
+    return packageJson.version ?? "0.0.0";
+  } catch {
+    return "0.0.0";
+  }
 }
