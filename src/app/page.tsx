@@ -72,10 +72,10 @@ const workflow = [
   },
   {
     step: "04",
-    title: "Review risky files",
+    title: "Run CI on pull requests",
     description:
-      "Run a final local review before committing or opening a pull request.",
-    command: "npx aioengine review",
+      "Add aioengine to GitHub Actions so pull requests get checked before merging.",
+    command: 'npx aioengine ci --task "update landing page headline"',
   },
 ];
 
@@ -317,7 +317,7 @@ export default function Home() {
             </p>
           </div>
 
-          <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+          <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
             {toolkit.map((item) => (
               <div
                 key={item.title}
@@ -326,9 +326,9 @@ export default function Home() {
                 <h3 className="text-lg font-semibold">{item.title}</h3>
 
                 <div className="mt-4 max-w-full overflow-hidden rounded-2xl border border-white/10 bg-black/30 p-3">
-                  <code className="block overflow-x-auto whitespace-nowrap text-xs text-cyan-100">
-                    {item.command}
-                  </code>
+                  <code className="block whitespace-pre-wrap break-words text-xs leading-5 text-cyan-100">
+                  {item.command}
+                </code>
                 </div>
 
                 <p className="mt-4 text-sm leading-6 text-white/60">
@@ -400,10 +400,10 @@ export default function Home() {
                   {item.description}
                 </p>
                 <div className="mt-5 max-w-full overflow-hidden rounded-2xl border border-white/10 bg-black/30 p-3">
-                  <code className="block overflow-x-auto whitespace-nowrap text-xs text-cyan-100">
-                    {item.command}
-                  </code>
-                </div>
+                <code className="block whitespace-pre-wrap break-words text-xs leading-5 text-cyan-100">
+                  {item.command}
+                </code>
+              </div>
               </div>
             ))}
           </div>
