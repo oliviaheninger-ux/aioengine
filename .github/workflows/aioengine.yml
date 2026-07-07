@@ -27,4 +27,11 @@ jobs:
           package-manager-cache: false
 
       - name: Run aioengine
-        run: npx aioengine@latest ci
+        run: npx aioengine@latest ci --report aioengine-report.md
+
+      - name: Upload aioengine report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: aioengine-report
+          path: aioengine-report.md
