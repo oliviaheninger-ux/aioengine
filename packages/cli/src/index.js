@@ -39,6 +39,7 @@ program
   .command("ci")
   .description("Run aioengine review checks in CI and pull request workflows.")
   .option("--task <task>", "Task description to compare changed files against")
+  .option("--report <path>", "Write a Markdown CI report to a file")
   .action((options) => runCi(options));
 
 program
@@ -346,6 +347,19 @@ function runCi(options = {}) {
   const hasScopeDrift = outOfScopeFiles.length > 0;
   const hasRiskyFiles = riskyFiles.length > 0;
 
+  if (options.report) {
+    writeCiReport(root, options.report, {
+      task,
+      profile,
+      files,
+      riskyFiles,
+      outOfScopeFiles,
+      hasScopeDrift,
+      hasRiskyFiles,
+      environment: isGitHubActions() ? "GitHub Actions" : "Local / unknown CI",
+    });
+  }
+
   if (hasScopeDrift) {
     console.log(pc.yellow("\nCI review recommended"));
 
@@ -557,163 +571,171 @@ function getChangedFiles(root) {
 function inferTaskProfile(task) {
   const cleanTask = task.toLowerCase();
 
-  const profiles = [
-    {
-      id: "ui",
-      label: "UI / frontend task",
-      strongKeywords: [
-        "landing page",
-        "home page",
-        "hero",
-        "headline",
-        "cta",
-        "navbar",
-        "footer",
-        "layout",
-        "mobile",
-        "responsive",
-        "pricing page",
-        "dashboard header",
-      ],
-      keywords: [
-        "ui",
-        "frontend",
-        "front end",
-        "page",
-        "component",
-        "style",
-        "css",
-        "tailwind",
-        "design",
-        "copy",
-        "button",
-        "card",
-        "section",
-      ],
-      allowed: [
-        "src/app/",
-        "src/components/",
-        "src/siteconfig.ts",
-        "public/",
-        "next-env.d.ts",
-      ],
-      sensitive: [
-        ".env",
-        "auth",
-        "stripe",
-        "billing",
-        "payment",
-        "supabase",
-        "migration",
-        "middleware",
-        "package.json",
-        ".github/workflows",
-      ],
-    },
-    {
-      id: "cli",
-      label: "CLI / tooling task",
-      strongKeywords: [
-        "cli",
-        "command",
-        "terminal command",
-        "npm package",
-        "package executable",
-        "bin",
-        "commander",
-        "aioengine init",
-        "aioengine check",
-        "aioengine review",
-        "aioengine scope",
-        "aioengine rules",
-      ],
-      keywords: [
-        "terminal",
-        "init",
-        "check",
-        "review",
-        "scope",
-        "rules",
-        "script",
-        "npm",
-        "package",
-        "developer tool",
-        "tooling",
-        "publish",
-      ],
-      allowed: [
-        "packages/cli/",
-        "package.json",
-        "package-lock.json",
-        ".aioengine/",
-        "CLAUDE.md",
-        ".cursor/",
-      ],
-      sensitive: [
-        ".env",
-        "auth",
-        "stripe",
-        "billing",
-        "payment",
-        "supabase",
-        "migration",
-        "middleware",
-        ".github/workflows",
-      ],
-    },
-    {
-      id: "docs",
-      label: "Docs / copy task",
-      strongKeywords: ["readme", "documentation", "docs"],
-      keywords: ["copy", "text", "wording", "content", "instructions"],
-      allowed: ["README", "readme", "docs/", ".md", "CLAUDE.md"],
-      sensitive: [
-        ".env",
-        "auth",
-        "stripe",
-        "billing",
-        "payment",
-        "supabase",
-        "migration",
-        "middleware",
-        "package.json",
-      ],
-    },
-    {
-      id: "backend",
-      label: "Backend / API task",
-      strongKeywords: ["api route", "route handler", "database", "server action"],
-      keywords: [
-        "api",
-        "backend",
-        "server",
-        "database",
-        "supabase",
-        "schema",
-        "auth",
-        "webhook",
-        "stripe",
-      ],
-      allowed: [
-        "src/app/api/",
-        "src/lib/",
-        "supabase/",
-        "prisma/",
-        "package.json",
-      ],
-      sensitive: [
-        ".env",
-        "stripe",
-        "billing",
-        "payment",
-        "auth",
-        "migration",
-        "schema",
-        "rls",
-        "middleware",
-      ],
-    },
-  ];
+const profiles = [
+  {
+    id: "ui",
+    label: "UI / frontend task",
+    strongKeywords: [
+      "landing page",
+      "home page",
+      "hero",
+      "headline",
+      "cta",
+      "navbar",
+      "footer",
+      "layout",
+      "mobile",
+      "responsive",
+      "pricing page",
+      "dashboard header",
+    ],
+    keywords: [
+      "ui",
+      "frontend",
+      "front end",
+      "page",
+      "component",
+      "style",
+      "css",
+      "tailwind",
+      "design",
+      "copy",
+      "button",
+      "card",
+      "section",
+    ],
+    allowed: [
+      "src/app/",
+      "src/components/",
+      "src/siteconfig.ts",
+      "public/",
+      "next-env.d.ts",
+    ],
+    sensitive: [
+      ".env",
+      "auth",
+      "stripe",
+      "billing",
+      "payment",
+      "supabase",
+      "migration",
+      "middleware",
+      "package.json",
+      ".github/workflows",
+    ],
+  },
+  {
+    id: "cli",
+    label: "CLI / tooling task",
+    strongKeywords: [
+      "cli",
+      "command",
+      "terminal command",
+      "npm package",
+      "package executable",
+      "bin",
+      "commander",
+      "ci command",
+      "ci report",
+      "markdown report",
+      "report output",
+      "aioengine init",
+      "aioengine check",
+      "aioengine review",
+      "aioengine scope",
+      "aioengine rules",
+      "aioengine ci",
+    ],
+    keywords: [
+      "terminal",
+      "init",
+      "check",
+      "review",
+      "scope",
+      "rules",
+      "script",
+      "npm",
+      "package",
+      "developer tool",
+      "tooling",
+      "publish",
+      "report",
+      "markdown",
+      "ci",
+    ],
+    allowed: [
+      "packages/cli/",
+      "package.json",
+      "package-lock.json",
+      ".aioengine/",
+      "CLAUDE.md",
+      ".cursor/",
+    ],
+    sensitive: [
+      ".env",
+      "auth",
+      "stripe",
+      "billing",
+      "payment",
+      "supabase",
+      "migration",
+      "middleware",
+      ".github/workflows",
+    ],
+  },
+  {
+    id: "docs",
+    label: "Docs / copy task",
+    strongKeywords: ["readme", "documentation", "docs"],
+    keywords: ["copy", "text", "wording", "content", "instructions"],
+    allowed: ["README", "readme", "docs/", ".md", "CLAUDE.md"],
+    sensitive: [
+      ".env",
+      "auth",
+      "stripe",
+      "billing",
+      "payment",
+      "supabase",
+      "migration",
+      "middleware",
+      "package.json",
+    ],
+  },
+  {
+    id: "backend",
+    label: "Backend / API task",
+    strongKeywords: ["api route", "route handler", "database", "server action"],
+    keywords: [
+      "api",
+      "backend",
+      "server",
+      "database",
+      "supabase",
+      "schema",
+      "auth",
+      "webhook",
+      "stripe",
+    ],
+    allowed: [
+      "src/app/api/",
+      "src/lib/",
+      "supabase/",
+      "prisma/",
+      "package.json",
+    ],
+    sensitive: [
+      ".env",
+      "stripe",
+      "billing",
+      "payment",
+      "auth",
+      "migration",
+      "schema",
+      "rls",
+      "middleware",
+    ],
+  },
+];
 
   const scoredProfiles = profiles
     .map((profile) => {
@@ -1134,6 +1156,108 @@ function getGitHubActionsChangedFiles(root) {
 
 function uniqueFiles(files) {
   return [...new Set(files)].sort();
+}
+
+function writeCiReport(root, reportPath, data) {
+  const outputPath = path.isAbsolute(reportPath)
+    ? reportPath
+    : path.join(root, reportPath);
+
+  const outputDir = path.dirname(outputPath);
+
+  fs.mkdirSync(outputDir, { recursive: true });
+  fs.writeFileSync(outputPath, buildCiReport(data), "utf8");
+
+  console.log(`${pc.dim("Report:")} ${outputPath}`);
+}
+
+function buildCiReport({
+  task,
+  profile,
+  files,
+  riskyFiles,
+  outOfScopeFiles,
+  hasScopeDrift,
+  hasRiskyFiles,
+  environment,
+}) {
+  const status = hasScopeDrift
+    ? "Review required"
+    : hasRiskyFiles
+      ? "Passed with warnings"
+      : "Passed";
+
+  const lines = [
+    "# aioengine CI Report",
+    "",
+    `**Status:** ${status}`,
+    `**Environment:** ${environment}`,
+    `**Task:** ${task || "Not detected"}`,
+    `**Detected task type:** ${profile?.label || "Unknown / general task"}`,
+    "",
+    "## Summary",
+    "",
+    `- Changed files: ${files.length}`,
+    `- Possible scope drift: ${outOfScopeFiles.length}`,
+    `- Risky files: ${riskyFiles.length}`,
+    "",
+    "## Changed files",
+    "",
+  ];
+
+  if (files.length === 0) {
+    lines.push("No changed files found.", "");
+  } else {
+   for (const file of files) {
+  if (outOfScopeFiles.includes(file)) {
+    lines.push(`- [SCOPE DRIFT] \`${file}\` — possible scope drift`);
+  } else if (riskyFiles.includes(file)) {
+    lines.push(`- [REVIEW] \`${file}\` — review carefully`);
+  } else {
+    lines.push(`- [OK] \`${file}\``);
+  }
+}
+
+    lines.push("");
+  }
+
+  if (outOfScopeFiles.length > 0) {
+    lines.push("## Possible scope drift", "");
+
+    for (const file of outOfScopeFiles) {
+      lines.push(`- \`${file}\``);
+    }
+
+    lines.push("");
+  }
+
+  if (riskyFiles.length > 0) {
+    lines.push("## Risky files", "");
+
+    for (const file of riskyFiles) {
+      lines.push(`- \`${file}\``);
+    }
+
+    lines.push("");
+  }
+
+  lines.push("## Recommendation", "");
+
+  if (hasScopeDrift) {
+    lines.push(
+      "Review these changes before merging. aioengine detected possible scope drift."
+    );
+  } else if (hasRiskyFiles) {
+    lines.push(
+      "Risky files were changed. aioengine allowed this check to pass, but these files should receive extra human review."
+    );
+  } else {
+    lines.push("No obvious AI change-control issues were detected.");
+  }
+
+  lines.push("");
+
+  return lines.join("\n");
 }
 
 function getCliVersion() {
