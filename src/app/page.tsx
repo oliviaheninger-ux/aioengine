@@ -33,6 +33,12 @@ const toolkit = [
     description:
       "Review current Git changes for sensitive files, dependency edits, config changes, and risky areas.",
   },
+  {
+  title: "CI",
+  command: "npx aioengine ci",
+  description:
+    "Run aioengine in GitHub Actions to flag possible scope drift on pull requests.",
+},
 ];
 
 const problems = [
@@ -170,7 +176,8 @@ export default function Home() {
 
             <p className="mt-5 max-w-2xl text-pretty text-base leading-7 text-white/70 sm:text-lg">
               {siteConfig.tagline} aioengine helps you catch risky,
-              sensitive, or out-of-scope AI-generated code before you commit.
+              sensitive, or out-of-scope AI-generated code before you commit
+              or merge a pull request.
             </p>
 
             <div className="mt-7 flex w-full flex-col gap-3 sm:flex-row sm:items-center">
@@ -310,7 +317,7 @@ export default function Home() {
             </p>
           </div>
 
-          <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
             {toolkit.map((item) => (
               <div
                 key={item.title}
@@ -479,7 +486,8 @@ export default function Home() {
               </h2>
               <p className="mt-4 text-pretty leading-7 text-white/70">
                 No account required. No dashboard required. Start with a local
-                check and see what AI coding guardrails your project is missing.
+                check, then add aioengine to GitHub Actions for pull request
+                guardrails.
               </p>
             </div>
 
