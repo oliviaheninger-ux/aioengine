@@ -16,10 +16,9 @@ program
 
 program
   .command("init")
-  .description("Set up aioengine for AI change control in this repo.")
-  .action(() => {
-    runInit();
-  });
+  .description("Create aioengine config files")
+  .option("--github", "Create a GitHub Actions workflow for aioengine PR checks")
+  .action((options) => runInit(options));
 
 program
   .command("check")
@@ -60,7 +59,7 @@ program
 
 program.parse();
 
-function runInit() {
+function runInit(options = {}) {
   printHeader("aioengine Init");
 
   const root = getProjectRoot();
@@ -111,6 +110,10 @@ function runInit() {
     skipped.push(cursorPath);
   }
 
+  if (options.github) {
+    createGithubWorkflowSafely(root, created, skipped);
+  }
+
   printSection("Created", created, "green");
   printSection("Skipped", skipped, "yellow");
 
@@ -127,6 +130,14 @@ function runInit() {
   console.log(`  2. Make or review AI-generated changes`);
   console.log(`  3. Run ${pc.cyan('aioengine scope "describe the task"')}`);
   console.log(`  4. Run ${pc.cyan("aioengine review")} before committing`);
+
+  if (options.github) {
+    console.log(
+      `  5. Open a pull request to see the ${pc.cyan(
+        "aioengine CI report"
+      )} comment`
+    );
+  }
 }
 
 function runCheck() {
@@ -505,6 +516,7 @@ function runScope(task) {
     );
   }
 }
+
 function runRules() {
   printHeader("aioengine Rules");
 
@@ -542,6 +554,79 @@ function runRules() {
 
   console.log(pc.bold("Next step:"));
   console.log(`  Run ${pc.cyan("aioengine check")} again.`);
+}
+
+function createGithubWorkflowSafely(root, created, skipped) {
+  const workflowDir = ".github/workflows";
+  const workflowPath = path.join(workflowDir, "aioengine.yml");
+
+  if (!exists(workflowDir, root)) {
+    fs.mkdirSync(path.join(root, workflowDir), { recursive: true });
+    created.push(workflowDir);
+  }
+
+  if (!exists(workflowPath, root)) {
+    fs.writeFileSync(
+      path.join(root, workflowPath),
+      getGithubActionsWorkflow(),
+      "utf8"
+    );
+    created.push(workflowPath);
+  } else {
+    skipped.push(`${workflowPath} already exists`);
+  }
+}
+
+function getGithubActionsWorkflow() {
+  return [
+    "name: aioengine",
+    "",
+    "on:",
+    "  pull_request:",
+    "    types: [opened, synchronize, reopened, edited]",
+    "  workflow_dispatch:",
+    "",
+    "permissions:",
+    "  contents: read",
+    "  pull-requests: write",
+    "  issues: write",
+    "",
+    "jobs:",
+    "  ai-change-control:",
+    "    name: AI change control",
+    "    runs-on: ubuntu-latest",
+    "",
+    "    steps:",
+    "      - name: Check out repository",
+    "        uses: actions/checkout@v6",
+    "        with:",
+    "          fetch-depth: 0",
+    "",
+    "      - name: Set up Node",
+    "        uses: actions/setup-node@v6",
+    "        with:",
+    "          node-version: 24",
+    "          package-manager-cache: false",
+    "",
+    "      - name: Run aioengine",
+    "        run: npx aioengine@latest ci --report aioengine-report.md",
+    "",
+    "      - name: Comment aioengine report on PR",
+    "        if: always() && github.event_name == 'pull_request'",
+    "        env:",
+    "          GH_TOKEN: ${{ github.token }}",
+    "          PR_NUMBER: ${{ github.event.pull_request.number }}",
+    "          REPO: ${{ github.repository }}",
+    '        run: gh pr comment "$PR_NUMBER" --repo "$REPO" --body-file aioengine-report.md --edit-last --create-if-none',
+    "",
+    "      - name: Upload aioengine report",
+    "        if: always()",
+    "        uses: actions/upload-artifact@v6",
+    "        with:",
+    "          name: aioengine-report",
+    "          path: aioengine-report.md",
+    "",
+  ].join("\n");
 }
 
 function getChangedFiles(root) {
