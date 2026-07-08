@@ -1,5 +1,6 @@
 import { Logo } from "@/components/Logo";
 import { siteConfig } from "@/siteconfig";
+import { CopyCommand } from "@/components/CopyCommand";
 
 const checks = [
   "Detect missing AI coding rules",
@@ -216,9 +217,7 @@ export default function Home() {
               <div className="space-y-3 p-4 text-sm sm:p-5">
                 <div className="flex min-w-0 items-start gap-2 rounded-2xl bg-white/[0.04] p-3">
                   <span className="shrink-0 text-emerald-300">$</span>
-                  <code className="block min-w-0 overflow-x-auto whitespace-nowrap text-cyan-100">
-                    npx aioengine@latest init --github
-                  </code>
+                  <CopyCommand command="npx aioengine@latest init --github" />
                 </div>
 
                 <div className="rounded-2xl border border-white/10 bg-[#071b19] p-4">
