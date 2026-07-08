@@ -11,34 +11,34 @@ const checks = [
 const toolkit = [
   {
     title: "Check",
-    command: "npx aioengine check",
+    command: "npx aioengine@latest check",
     description:
       "Scan a repo for AI coding guardrails like project rules, config files, env safety, tests, and Git setup.",
   },
   {
     title: "Init",
-    command: "npx aioengine init",
+    command: "npx aioengine@latest init",
     description:
       "Create starter AI coding boundaries with .aioengine config, CLAUDE.md, and Cursor rules.",
   },
   {
+    title: "GitHub PR comments",
+    command: "npx aioengine@latest init --github",
+    description:
+      "Set up GitHub Actions so aioengine runs on pull requests and comments directly with a change-control report.",
+  },
+  {
     title: "Scope",
-    command: 'npx aioengine scope "update dashboard header"',
+    command: 'npx aioengine@latest scope "update dashboard header"',
     description:
       "Compare the task you gave your AI coding tool against the files it actually changed.",
   },
   {
     title: "Review",
-    command: "npx aioengine review",
+    command: "npx aioengine@latest review",
     description:
       "Review current Git changes for sensitive files, dependency edits, config changes, and risky areas.",
   },
-  {
-  title: "CI",
-  command: "npx aioengine ci",
-  description:
-    "Run aioengine in GitHub Actions to flag possible scope drift on pull requests.",
-},
 ];
 
 const problems = [
@@ -51,10 +51,10 @@ const problems = [
 const workflow = [
   {
     step: "01",
-    title: "Run a setup check",
+    title: "Install guardrails",
     description:
-      "Start with a quick scan to see whether your repo has basic AI coding guardrails.",
-    command: "npx aioengine check",
+      "Set up local AI coding rules and GitHub pull request checks in one command.",
+    command: "npx aioengine@latest init --github",
   },
   {
     step: "02",
@@ -65,65 +65,69 @@ const workflow = [
   },
   {
     step: "03",
-    title: "Check scope before commit",
+    title: "Check scope locally",
     description:
-      "Tell aioengine what the task was and it will flag files that may be out of scope.",
-    command: 'npx aioengine scope "update landing page headline"',
+      "Before committing, compare the task you gave AI against the files it actually changed.",
+    command: 'npx aioengine@latest scope "update landing page headline"',
   },
   {
     step: "04",
-    title: "Run CI on pull requests",
+    title: "Open a pull request",
     description:
-      "Add aioengine to GitHub Actions so pull requests get checked before merging.",
-    command: 'npx aioengine ci --task "update landing page headline"',
+      "aioengine runs in GitHub Actions and comments directly on the PR with a change-control report.",
+    command: "Open a GitHub pull request",
   },
 ];
 
 const pricing = [
-    {
+  {
     name: "Free",
     price: "$0",
-    description: "Local AI coding checks for solo developers.",
+    description: "Local and GitHub PR checks for AI-assisted developers.",
     features: [
       "Run aioengine locally",
       "Setup score",
       "Scope checks",
       "Risky file review",
       "Claude and Cursor rule generation",
+      "GitHub PR comments",
+      "Markdown CI report artifact",
     ],
-    cta: "Run npx aioengine check",
+    cta: "Start with init --github",
     href: "https://www.npmjs.com/package/aioengine",
   },
-
   {
     name: "Solo",
     price: "$12/mo",
-    description: "For developers who use AI coding tools every week.",
+    description: "For developers who want saved reports and custom rules.",
     features: [
-      "Saved local reports",
+      "Saved report history",
       "Custom risk rules",
       "Better scope profiles",
-      "Release checks",
+      "Ignored path rules",
+      "Release check summaries",
       "Priority CLI updates",
     ],
     cta: "Coming soon",
     href: "https://www.npmjs.com/package/aioengine",
   },
   {
-    name: "Pro",
+    name: "Team",
     price: "$29/mo",
-    description: "For teams and agencies that want AI review on PRs.",
+    description: "For teams and agencies that want shared AI change-control policies.",
     features: [
-      "GitHub PR checks",
-      "Team rules",
-      "Report history",
+      "Team policy management",
+      "Multiple repo reporting",
+      "Dashboard history",
       "Sensitive file policies",
-      "CI/CD guardrails",
+      "Shared allow/block lists",
+      "Slack or email alerts",
     ],
     cta: "Coming soon",
     href: "https://www.npmjs.com/package/aioengine",
   },
 ];
+
 export default function Home() {
   return (
     <main className="min-h-screen overflow-x-hidden bg-[#061211] text-white">
@@ -175,9 +179,7 @@ export default function Home() {
             </h1>
 
             <p className="mt-5 max-w-2xl text-pretty text-base leading-7 text-white/70 sm:text-lg">
-              {siteConfig.tagline} aioengine helps you catch risky,
-              sensitive, or out-of-scope AI-generated code before you commit
-              or merge a pull request.
+               Run aioengine locally, in CI, or directly on GitHub pull requests. Install AI change-control guardrails and GitHub PR comments in one command, so risky or out-of-scope AI-generated code gets caught before it merges.
             </p>
 
             <div className="mt-7 flex w-full flex-col gap-3 sm:flex-row sm:items-center">
@@ -215,7 +217,7 @@ export default function Home() {
                 <div className="flex min-w-0 items-start gap-2 rounded-2xl bg-white/[0.04] p-3">
                   <span className="shrink-0 text-emerald-300">$</span>
                   <code className="block min-w-0 overflow-x-auto whitespace-nowrap text-cyan-100">
-                    npx aioengine check
+                    npx aioengine@latest init --github
                   </code>
                 </div>
 
@@ -415,19 +417,19 @@ export default function Home() {
         className="relative z-10 px-4 py-14 sm:px-6 sm:py-20 lg:px-8"
       >
         <div className="mx-auto w-full max-w-6xl">
-          <div className="max-w-2xl">
-            <p className="text-sm font-semibold text-emerald-200">
-              Pricing direction
-            </p>
-            <h2 className="mt-3 text-balance text-3xl font-semibold tracking-tight sm:text-4xl">
-              Free locally. Paid when teams need CI and PR guardrails.
-            </h2>
-            <p className="mt-4 text-pretty leading-7 text-white/65">
-              The public CLI starts free. Paid features will focus on saved
-              reports, GitHub checks, team rules, and continuous AI change
-              control.
-            </p>
-          </div>
+  <div className="max-w-2xl">
+    <p className="text-sm font-semibold text-emerald-200">
+      Pricing direction
+    </p>
+    <h2 className="mt-3 text-balance text-3xl font-semibold tracking-tight sm:text-4xl">
+      Free guardrails now. Paid when teams need history, policies, and control.
+    </h2>
+    <p className="mt-4 text-pretty leading-7 text-white/65">
+      The public CLI starts free, including local checks and GitHub PR comments.
+      Paid features will focus on saved reports, custom rules, dashboard history,
+      team policies, and continuous AI change control.
+    </p>
+  </div>
 
           <div className="mt-10 grid gap-4 lg:grid-cols-3">
             {pricing.map((plan) => (
@@ -501,7 +503,7 @@ export default function Home() {
               >
                 <span className="shrink-0 text-emerald-300">$</span>
                 <code className="block min-w-0 overflow-x-auto whitespace-nowrap text-cyan-100">
-                  npx aioengine check
+                  npx aioengine@latest init --github
                 </code>
               </a>
             </div>
