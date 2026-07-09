@@ -141,7 +141,7 @@ export default function Home() {
       <header className="relative z-10 border-b border-white/10 bg-[#061211]/80 backdrop-blur">
         <div className="mx-auto flex w-full max-w-6xl items-center justify-between px-4 py-4 sm:px-6 lg:px-8">
           <a href="#" className="flex min-w-0 items-center">
-            <Logo className="h-8 w-auto max-w-[150px] sm:h-10 sm:max-w-[180px]" />
+            <Logo className="h-14 w-auto sm:h-16" />
           </a>
 
           <nav className="hidden items-center gap-6 text-sm text-white/70 md:flex">
