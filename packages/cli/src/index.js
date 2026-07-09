@@ -82,6 +82,8 @@ function runInit(options = {}) {
   const configPath = path.join(aioengineDir, "config.json");
   const cursorDir = ".cursor/rules";
   const cursorPath = path.join(cursorDir, "aioengine.mdc");
+  const snapshotsDir = path.join(aioengineDir, "snapshots");
+  const snapshotsGitignorePath = path.join(snapshotsDir, ".gitignore");
 
   if (!isInsideGitRepo()) {
     console.log(
@@ -107,6 +109,21 @@ function runInit(options = {}) {
     created.push(configPath);
   } else {
     skipped.push(configPath);
+  }
+
+  if (!exists(snapshotsDir, root)) {
+  fs.mkdirSync(path.join(root, snapshotsDir), { recursive: true });
+}
+
+  if (!exists(snapshotsGitignorePath, root)) {
+    fs.writeFileSync(
+      path.join(root, snapshotsGitignorePath),
+      "*\n!.gitignore\n",
+      "utf8"
+    );
+    created.push(snapshotsGitignorePath);
+  } else {
+    skipped.push(snapshotsGitignorePath);
   }
 
   createClaudeRulesSafely(root, created, skipped);
