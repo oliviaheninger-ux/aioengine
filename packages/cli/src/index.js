@@ -6,6 +6,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { execSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
+import crypto from "crypto";
 
 const program = new Command();
 
@@ -19,6 +20,12 @@ program
   .description("Create aioengine config files")
   .option("--github", "Create a GitHub Actions workflow for aioengine PR checks")
   .action((options) => runInit(options));
+
+program
+  .command("snapshot")
+  .description("Save a repo snapshot with Git HEAD, file hashes, and key project context.")
+  .option("--name <name>", "Snapshot name", "latest")
+  .action((options) => runSnapshot(options));
 
 program
   .command("check")
@@ -39,16 +46,21 @@ program
   .description("Run aioengine review checks in CI and pull request workflows.")
   .option("--task <task>", "Task description to compare changed files against")
   .option("--report <path>", "Write a Markdown CI report to a file")
+  .option(
+    "--profile <profile>",
+    "Task profile override: ui, cli, docs, backend, ci"
+  )
   .action((options) => runCi(options));
 
 program
   .command("scope")
-  .description("Check whether changed files match the requested task.")
-  .argument("[task...]", "The task you asked the AI coding tool to do")
-  .action((taskParts = []) => {
-    const task = Array.isArray(taskParts) ? taskParts.join(" ") : "";
-    runScope(task);
-  });
+  .description("Check whether changed files match the task you gave your AI coding tool.")
+  .argument("<task>", "Task description")
+  .option(
+    "--profile <profile>",
+    "Task profile override: ui, cli, docs, backend, ci"
+  )
+  .action((task, options) => runScope(task, options));
 
 program
   .command("rules")
@@ -137,6 +149,222 @@ function runInit(options = {}) {
         "aioengine CI report"
       )} comment`
     );
+  }
+}
+
+function runSnapshot(options = {}) {
+  printHeader("aioengine Snapshot");
+
+  const root = getProjectRoot();
+
+  if (!isInsideGitRepo()) {
+    console.log(
+      pc.yellow(
+        "Snapshot requires a Git repo because it records Git HEAD and tracked file state."
+      )
+    );
+    process.exitCode = 1;
+    return;
+  }
+
+  const snapshotName = sanitizeSnapshotName(options.name || "latest");
+  const snapshotDir = path.join(root, ".aioengine", "snapshots");
+  const snapshotPath = path.join(snapshotDir, `${snapshotName}.json`);
+
+  fs.mkdirSync(snapshotDir, { recursive: true });
+  ensureSnapshotGitignore(snapshotDir);
+
+  const snapshot = buildRepoSnapshot(root);
+
+  fs.writeFileSync(snapshotPath, JSON.stringify(snapshot, null, 2), "utf8");
+
+  console.log(`${pc.green("✓")} Saved repo snapshot`);
+  console.log(`${pc.dim("Path:")} ${path.relative(root, snapshotPath)}`);
+  console.log(`${pc.dim("Git HEAD:")} ${snapshot.git.head || "unknown"}`);
+  console.log(`${pc.dim("Tracked files hashed:")} ${snapshot.files.length}`);
+
+  if (snapshot.git.dirty) {
+    console.log(
+      pc.yellow(
+        "Note: your working tree has uncommitted changes. The snapshot records this."
+      )
+    );
+  }
+}
+
+function buildRepoSnapshot(root) {
+  const trackedFiles = getTrackedFiles(root);
+  const fileSnapshots = [];
+
+  for (const file of trackedFiles) {
+    if (shouldSkipSnapshotFile(file)) {
+      continue;
+    }
+
+    const absolutePath = path.join(root, file);
+
+    if (!fs.existsSync(absolutePath)) {
+      fileSnapshots.push({
+        path: normalizePath(file),
+        status: "deleted",
+      });
+      continue;
+    }
+
+    const stats = fs.statSync(absolutePath);
+
+    if (!stats.isFile()) {
+      continue;
+    }
+
+    fileSnapshots.push({
+      path: normalizePath(file),
+      sizeBytes: stats.size,
+      sha256: hashFile(absolutePath),
+    });
+  }
+
+  return {
+    snapshotVersion: 1,
+    aioengineVersion: getCliVersion(),
+    createdAt: new Date().toISOString(),
+    git: {
+      head: safeGit("rev-parse HEAD", root),
+      branch: safeGit("branch --show-current", root),
+      dirty: safeGit("status --porcelain", root).length > 0,
+      status: safeGit("status --short", root)
+        .split("\n")
+        .filter(Boolean),
+    },
+    summary: {
+      trackedFilesHashed: fileSnapshots.length,
+      keyContextIncluded: true,
+    },
+    context: collectKeyRepoContext(root),
+    files: fileSnapshots,
+  };
+}
+
+function collectKeyRepoContext(root) {
+  return {
+    packageJson: collectPackageJsonContext(root),
+    guardrails: {
+      aioengineConfig: exists(".aioengine/config.json", root),
+      claudeRules: exists("CLAUDE.md", root),
+      cursorRules: exists(".cursor/rules/aioengine.mdc", root),
+      githubWorkflow: exists(".github/workflows/aioengine.yml", root),
+    },
+    workflows: collectWorkflowContext(root),
+    lockfiles: {
+      packageLock: exists("package-lock.json", root),
+      pnpmLock: exists("pnpm-lock.yaml", root),
+      yarnLock: exists("yarn.lock", root),
+    },
+  };
+}
+
+function collectPackageJsonContext(root) {
+  const packagePath = path.join(root, "package.json");
+
+  if (!fs.existsSync(packagePath)) {
+    return null;
+  }
+
+  try {
+    const packageJson = JSON.parse(fs.readFileSync(packagePath, "utf8"));
+
+    return {
+      name: packageJson.name || null,
+      version: packageJson.version || null,
+      type: packageJson.type || null,
+      scripts: Object.keys(packageJson.scripts || {}),
+      dependencies: Object.keys(packageJson.dependencies || {}),
+      devDependencies: Object.keys(packageJson.devDependencies || {}),
+    };
+  } catch {
+    return {
+      error: "Could not parse package.json",
+    };
+  }
+}
+
+function collectWorkflowContext(root) {
+  const workflowDir = path.join(root, ".github", "workflows");
+
+  if (!fs.existsSync(workflowDir)) {
+    return [];
+  }
+
+  return fs
+    .readdirSync(workflowDir)
+    .filter((file) => file.endsWith(".yml") || file.endsWith(".yaml"))
+    .map((file) => {
+      const absolutePath = path.join(workflowDir, file);
+      const content = fs.readFileSync(absolutePath, "utf8");
+
+      return {
+        file: normalizePath(path.join(".github", "workflows", file)),
+        lines: content.split("\n").length,
+        sha256: hashFile(absolutePath),
+      };
+    });
+}
+
+function getTrackedFiles(root) {
+  return safeGit("ls-files", root)
+    .split("\n")
+    .map((file) => file.trim())
+    .filter(Boolean);
+}
+
+function safeGit(command, root) {
+  try {
+    return execSync(`git ${command}`, {
+      cwd: root,
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+    }).trim();
+  } catch {
+    return "";
+  }
+}
+
+function hashFile(filePath) {
+  return crypto
+    .createHash("sha256")
+    .update(fs.readFileSync(filePath))
+    .digest("hex");
+}
+
+function sanitizeSnapshotName(name) {
+  return name.replace(/[^a-zA-Z0-9._-]/g, "-");
+}
+
+function normalizePath(filePath) {
+  return filePath.split(path.sep).join("/");
+}
+
+function shouldSkipSnapshotFile(file) {
+  const normalized = normalizePath(file);
+
+  return [
+    "node_modules/",
+    ".git/",
+    ".next/",
+    "dist/",
+    "build/",
+    "coverage/",
+    ".turbo/",
+    ".vercel/",
+    ".aioengine/snapshots/",
+  ].some((prefix) => normalized.startsWith(prefix));
+}
+
+function ensureSnapshotGitignore(snapshotDir) {
+  const gitignorePath = path.join(snapshotDir, ".gitignore");
+
+  if (!fs.existsSync(gitignorePath)) {
+    fs.writeFileSync(gitignorePath, "*\n!.gitignore\n", "utf8");
   }
 }
 
@@ -330,7 +558,7 @@ function runCi(options = {}) {
     return;
   }
 
-  const profile = task ? inferTaskProfile(task) : null;
+  const profile = inferTaskProfile(task, options.profile);
   const riskyFiles = files.filter(isRiskyFile);
   const outOfScopeFiles = profile
     ? files.filter((file) => isProbablyOutOfScope(file, profile))
@@ -412,7 +640,7 @@ function runCi(options = {}) {
   console.log(pc.green("\nNo obvious AI change-control issues detected."));
 }
 
-function runScope(task) {
+function runScope(task, options = {}) {
   printHeader("aioengine Scope");
 
   if (!isInsideGitRepo()) {
@@ -438,7 +666,7 @@ function runScope(task) {
     console.log("");
   }
 
-  const profile = inferTaskProfile(cleanTask);
+  const profile = inferTaskProfile(task, options.profile);
   const outOfScopeFiles = files.filter((file) =>
     isProbablyOutOfScope(file, profile)
   );
@@ -653,174 +881,232 @@ function getChangedFiles(root) {
   }
 }
 
-function inferTaskProfile(task) {
+function inferTaskProfile(task = "", forcedProfileId) {
   const cleanTask = task.toLowerCase();
 
-const profiles = [
-  {
-    id: "ui",
-    label: "UI / frontend task",
-    strongKeywords: [
-      "landing page",
-      "home page",
-      "hero",
-      "headline",
-      "cta",
-      "navbar",
-      "footer",
-      "layout",
-      "mobile",
-      "responsive",
-      "pricing page",
-      "dashboard header",
-    ],
-    keywords: [
-      "ui",
-      "frontend",
-      "front end",
-      "page",
-      "component",
-      "style",
-      "css",
-      "tailwind",
-      "design",
-      "copy",
-      "button",
-      "card",
-      "section",
-    ],
-    allowed: [
-      "src/app/",
-      "src/components/",
-      "src/siteconfig.ts",
-      "public/",
-      "next-env.d.ts",
-    ],
-    sensitive: [
-      ".env",
-      "auth",
-      "stripe",
-      "billing",
-      "payment",
-      "supabase",
-      "migration",
-      "middleware",
-      "package.json",
-      ".github/workflows",
-    ],
-  },
-  {
-    id: "cli",
-    label: "CLI / tooling task",
-    strongKeywords: [
-      "cli",
-      "command",
-      "terminal command",
-      "npm package",
-      "package executable",
-      "bin",
-      "commander",
-      "ci command",
-      "ci report",
-      "markdown report",
-      "report output",
-      "aioengine init",
-      "aioengine check",
-      "aioengine review",
-      "aioengine scope",
-      "aioengine rules",
-      "aioengine ci",
-    ],
-    keywords: [
-      "terminal",
-      "init",
-      "check",
-      "review",
-      "scope",
-      "rules",
-      "script",
-      "npm",
-      "package",
-      "developer tool",
-      "tooling",
-      "publish",
-      "report",
-      "markdown",
-      "ci",
-    ],
-    allowed: [
-      "packages/cli/",
-      "package.json",
-      "package-lock.json",
-      ".aioengine/",
-      "CLAUDE.md",
-      ".cursor/",
-    ],
-    sensitive: [
-      ".env",
-      "auth",
-      "stripe",
-      "billing",
-      "payment",
-      "supabase",
-      "migration",
-      "middleware",
-      ".github/workflows",
-    ],
-  },
-  {
-    id: "docs",
-    label: "Docs / copy task",
-    strongKeywords: ["readme", "documentation", "docs"],
-    keywords: ["copy", "text", "wording", "content", "instructions"],
-    allowed: ["README", "readme", "docs/", ".md", "CLAUDE.md"],
-    sensitive: [
-      ".env",
-      "auth",
-      "stripe",
-      "billing",
-      "payment",
-      "supabase",
-      "migration",
-      "middleware",
-      "package.json",
-    ],
-  },
-  {
-    id: "backend",
-    label: "Backend / API task",
-    strongKeywords: ["api route", "route handler", "database", "server action"],
-    keywords: [
-      "api",
-      "backend",
-      "server",
-      "database",
-      "supabase",
-      "schema",
-      "auth",
-      "webhook",
-      "stripe",
-    ],
-    allowed: [
-      "src/app/api/",
-      "src/lib/",
-      "supabase/",
-      "prisma/",
-      "package.json",
-    ],
-    sensitive: [
-      ".env",
-      "stripe",
-      "billing",
-      "payment",
-      "auth",
-      "migration",
-      "schema",
-      "rls",
-      "middleware",
-    ],
-  },
-];
+  const profiles = [
+    {
+      id: "ui",
+      label: "UI / frontend task",
+      strongKeywords: [
+        "landing page",
+        "home page",
+        "hero",
+        "headline",
+        "cta",
+        "navbar",
+        "footer",
+        "layout",
+        "mobile",
+        "responsive",
+        "pricing page",
+        "dashboard header",
+      ],
+      keywords: [
+        "ui",
+        "frontend",
+        "front end",
+        "page",
+        "component",
+        "style",
+        "css",
+        "tailwind",
+        "design",
+        "copy",
+        "button",
+        "card",
+        "section",
+      ],
+      allowed: [
+        "src/app/",
+        "src/components/",
+        "src/siteconfig.ts",
+        "public/",
+        "next-env.d.ts",
+      ],
+      sensitive: [
+        ".env",
+        "auth",
+        "stripe",
+        "billing",
+        "payment",
+        "supabase",
+        "migration",
+        "middleware",
+        "package.json",
+        ".github/workflows",
+      ],
+    },
+    {
+      id: "cli",
+      label: "CLI / tooling task",
+      strongKeywords: [
+        "cli",
+        "command",
+        "terminal command",
+        "npm package",
+        "package executable",
+        "bin",
+        "commander",
+        "ci command",
+        "ci report",
+        "markdown report",
+        "report output",
+        "aioengine init",
+        "aioengine check",
+        "aioengine review",
+        "aioengine scope",
+        "aioengine rules",
+        "aioengine ci",
+      ],
+      keywords: [
+        "terminal",
+        "init",
+        "check",
+        "review",
+        "scope",
+        "rules",
+        "script",
+        "npm",
+        "package",
+        "developer tool",
+        "tooling",
+        "publish",
+        "report",
+        "markdown",
+        "ci",
+      ],
+      allowed: [
+        "packages/cli/",
+        "package.json",
+        "package-lock.json",
+        ".aioengine/",
+        "CLAUDE.md",
+        ".cursor/",
+      ],
+      sensitive: [
+        ".env",
+        "auth",
+        "stripe",
+        "billing",
+        "payment",
+        "supabase",
+        "migration",
+        "middleware",
+        ".github/workflows",
+      ],
+    },
+    {
+      id: "docs",
+      label: "Docs / copy task",
+      strongKeywords: ["readme", "documentation", "docs"],
+      keywords: ["copy", "text", "wording", "content", "instructions"],
+      allowed: ["README", "readme", "docs/", ".md", "CLAUDE.md"],
+      sensitive: [
+        ".env",
+        "auth",
+        "stripe",
+        "billing",
+        "payment",
+        "supabase",
+        "migration",
+        "middleware",
+        "package.json",
+      ],
+    },
+    {
+      id: "backend",
+      label: "Backend / API task",
+      strongKeywords: ["api route", "route handler", "database", "server action"],
+      keywords: [
+        "api",
+        "backend",
+        "server",
+        "database",
+        "supabase",
+        "schema",
+        "auth",
+        "webhook",
+        "stripe",
+      ],
+      allowed: [
+        "src/app/api/",
+        "src/lib/",
+        "supabase/",
+        "prisma/",
+        "package.json",
+      ],
+      sensitive: [
+        ".env",
+        "stripe",
+        "billing",
+        "payment",
+        "auth",
+        "migration",
+        "schema",
+        "rls",
+        "middleware",
+      ],
+    },
+    {
+      id: "ci",
+      label: "CI / workflow task",
+      strongKeywords: [
+        "github actions",
+        "workflow",
+        "ci workflow",
+        "pull request",
+        "pr check",
+        "github action",
+        "node 24",
+      ],
+      keywords: [
+        "ci",
+        "pipeline",
+        "runner",
+        "actions",
+        "checkout",
+        "setup-node",
+        "upload artifact",
+        "artifact",
+        "permissions",
+      ],
+      allowed: [
+        ".github/workflows/",
+        "packages/cli/",
+        "package.json",
+        "package-lock.json",
+        "README.md",
+        "docs/",
+      ],
+      sensitive: [
+        ".env",
+        "auth",
+        "stripe",
+        "billing",
+        "payment",
+        "supabase",
+        "migration",
+        "middleware",
+      ],
+    },
+  ];
+
+  if (forcedProfileId) {
+    const forcedProfile = profiles.find(
+      (profile) => profile.id === forcedProfileId
+    );
+
+    if (forcedProfile) {
+      return forcedProfile;
+    }
+
+    console.log(
+      pc.yellow(
+        `Unknown profile "${forcedProfileId}". Using automatic task detection instead.`
+      )
+    );
+  }
 
   const scoredProfiles = profiles
     .map((profile) => {
