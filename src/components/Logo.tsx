@@ -6,7 +6,7 @@ export function Logo({ className = "h-14 w-auto" }: { className?: string }) {
       src="/aioengine-logo2.png"
       alt="aioengine"
       width={400}
-      height={48}
+      height={100}
       className={className}
       priority
     />
