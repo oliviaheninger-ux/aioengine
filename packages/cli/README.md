@@ -2,7 +2,7 @@
 
 AI change control for developers using Claude Code, Cursor, Codex, Copilot, and MCP tools.
 
-aioengine helps you review AI-generated code before you trust it. It scans your repo for missing guardrails, checks changed files for risky edits, flags when AI may have wandered outside the requested task, and can comment directly on GitHub pull requests with a change-control report.
+aioengine helps you review AI-generated code before you trust it. It scans your repo for missing guardrails, saves repo snapshots, checks changed files for risky edits, flags when AI may have wandered outside the requested task, and can comment directly on GitHub pull requests with a change-control report.
 
 ## Quick start
 
@@ -12,26 +12,118 @@ Run a local setup check:
 npx aioengine@latest check
 ```
 
-Set up local AI coding guardrails:
-
-```bash
-npx aioengine@latest init
-```
-
-Set up local guardrails **and** GitHub pull request checks:
+Set up local guardrails and GitHub pull request comments:
 
 ```bash
 npx aioengine@latest init --github
 ```
 
-After your AI coding tool makes changes, review them before committing:
+Save a repo snapshot before AI changes code:
 
 ```bash
-npx aioengine@latest scope "update landing page headline"
+npx aioengine@latest snapshot
+```
+
+After your AI coding tool makes changes, check whether the changes stayed in scope:
+
+```bash
+npx aioengine@latest scope "update landing page headline" --profile ui
+```
+
+Then review risky files before committing:
+
+```bash
 npx aioengine@latest review
 ```
 
-## What `init --github` creates
+Open a pull request. aioengine will run in GitHub Actions and comment directly on the PR with a change-control report.
+
+## Commands
+
+```bash
+npx aioengine@latest check
+npx aioengine@latest init
+npx aioengine@latest init --github
+npx aioengine@latest snapshot
+npx aioengine@latest snapshot --name before-ai-edit
+npx aioengine@latest scope "update landing page headline"
+npx aioengine@latest scope "update landing page headline" --profile ui
+npx aioengine@latest review
+npx aioengine@latest ci
+npx aioengine@latest ci --profile ci
+npx aioengine@latest ci --report aioengine-report.md
+npx aioengine@latest rules
+```
+
+## Why aioengine exists
+
+AI coding tools can move fast, but review becomes the bottleneck.
+
+A simple prompt can lead to unexpected changes in sensitive files like auth, billing, database migrations, environment config, deployment settings, dependency files, or CI workflows.
+
+aioengine helps answer:
+
+- Did AI touch sensitive files?
+- Did AI change files outside the task?
+- Did AI add or modify dependencies?
+- Does this repo have AI coding rules?
+- What changed since the last repo snapshot?
+- What should I review before committing or merging?
+
+## `aioengine check`
+
+Scans your repo for AI coding setup risks.
+
+Run:
+
+```bash
+npx aioengine@latest check
+```
+
+Checks for:
+
+- Git repo
+- `package.json`
+- `.aioengine/config.json`
+- `.gitignore`
+- env files
+- Claude rules
+- Cursor rules
+- MCP config
+- GitHub Actions
+- tests
+
+## `aioengine init`
+
+Sets up aioengine in your repo.
+
+Run:
+
+```bash
+npx aioengine@latest init
+```
+
+Creates missing files only:
+
+```txt
+.aioengine/config.json
+CLAUDE.md
+.cursor/rules/aioengine.mdc
+```
+
+aioengine will not overwrite an existing `CLAUDE.md`.
+
+If `CLAUDE.md` already exists, aioengine leaves it untouched and saves suggested rules to:
+
+```txt
+.aioengine/suggested-claude-rules.md
+```
+
+## `aioengine init --github`
+
+Sets up aioengine local guardrails and a GitHub Actions workflow for PR checks.
+
+Run:
 
 ```bash
 npx aioengine@latest init --github
@@ -46,15 +138,9 @@ CLAUDE.md
 .github/workflows/aioengine.yml
 ```
 
-aioengine will not overwrite an existing `CLAUDE.md`.
+The generated workflow runs aioengine on pull requests, writes a Markdown report, uploads the report as an artifact, and comments directly on the PR.
 
-If `CLAUDE.md` already exists, aioengine leaves it untouched and saves suggested rules to:
-
-```txt
-.aioengine/suggested-claude-rules.md
-```
-
-aioengine will also not overwrite an existing:
+aioengine will not overwrite an existing:
 
 ```txt
 .github/workflows/aioengine.yml
@@ -128,100 +214,82 @@ By default:
 - a Markdown report is uploaded as a workflow artifact
 - the same report is posted as a PR comment
 
-## Commands
+## Scope profiles
+
+aioengine can automatically guess the task type from your task description, but you can also set it manually.
+
+Use `--profile` when you already know what kind of change AI was supposed to make:
 
 ```bash
-npx aioengine@latest check
-npx aioengine@latest init
-npx aioengine@latest init --github
-npx aioengine@latest scope "update landing page headline"
-npx aioengine@latest review
-npx aioengine@latest ci
-npx aioengine@latest ci --report aioengine-report.md
-npx aioengine@latest rules
+npx aioengine@latest scope "update landing page headline" --profile ui
+npx aioengine@latest scope "update README docs" --profile docs
+npx aioengine@latest scope "add CLI command" --profile cli
+npx aioengine@latest scope "update GitHub Actions workflow" --profile ci
+npx aioengine@latest scope "add API route" --profile backend
 ```
 
-## Why aioengine exists
+Available profiles:
 
-AI coding tools can move fast, but review becomes the bottleneck.
+```txt
+ui
+docs
+cli
+ci
+backend
+```
 
-A simple prompt can lead to unexpected changes in sensitive files like auth, billing, database migrations, environment config, deployment settings, dependency files, or CI workflows.
+Profiles help aioengine judge whether changed files make sense for the task.
 
-aioengine helps answer:
+For example, this command tells aioengine the expected change is frontend/UI work:
 
-- Did AI touch sensitive files?
-- Did AI change files outside the task?
-- Did AI add or modify dependencies?
-- Does this repo have AI coding rules?
-- What should I review before committing or merging?
+```bash
+npx aioengine@latest scope "update dashboard header" --profile ui
+```
 
-## `aioengine check`
+If AI also changed database migrations, billing files, or GitHub workflows, aioengine can flag those files as possible scope drift.
 
-Scans your repo for AI coding setup risks.
+## `aioengine snapshot`
+
+Saves a repo snapshot with Git HEAD, tracked file hashes, and key project context.
 
 Run:
 
 ```bash
-npx aioengine@latest check
+npx aioengine@latest snapshot
 ```
 
-Checks for:
+Creates:
 
-- Git repo
-- `package.json`
-- `.aioengine/config.json`
-- `.gitignore`
-- env files
-- Claude rules
-- Cursor rules
-- MCP config
-- GitHub Actions
-- tests
+```txt
+.aioengine/snapshots/latest.json
+```
 
-## `aioengine init`
-
-Sets up aioengine in your repo.
-
-Run:
+You can also name a snapshot:
 
 ```bash
-npx aioengine@latest init
+npx aioengine@latest snapshot --name before-ai-edit
 ```
 
-Creates missing files only:
+Creates:
 
 ```txt
-.aioengine/config.json
-CLAUDE.md
-.cursor/rules/aioengine.mdc
+.aioengine/snapshots/before-ai-edit.json
 ```
 
-If `CLAUDE.md` already exists, aioengine leaves it untouched and saves suggested rules to:
+Snapshots include:
 
-```txt
-.aioengine/suggested-claude-rules.md
-```
+- Git HEAD
+- current branch
+- dirty working tree status
+- tracked file hashes
+- `package.json` context
+- guardrail file status
+- GitHub workflow context
+- lockfile status
 
-## `aioengine init --github`
+Snapshot JSON files are ignored by default so they do not get committed accidentally.
 
-Sets up aioengine local guardrails and a GitHub Actions workflow for PR checks.
-
-Run:
-
-```bash
-npx aioengine@latest init --github
-```
-
-Creates missing files only:
-
-```txt
-.aioengine/config.json
-CLAUDE.md
-.cursor/rules/aioengine.mdc
-.github/workflows/aioengine.yml
-```
-
-The generated workflow runs aioengine on pull requests, writes a Markdown report, uploads the report as an artifact, and comments on the PR.
+Use snapshots before letting AI make larger changes, so you have a clean record of the repo state before the edit.
 
 ## `aioengine scope`
 
@@ -231,6 +299,12 @@ Run:
 
 ```bash
 npx aioengine@latest scope "update landing page headline"
+```
+
+Or manually set the expected profile:
+
+```bash
+npx aioengine@latest scope "update landing page headline" --profile ui
 ```
 
 If the task sounds like a UI change but AI modified billing, database, env, dependency, CLI, or deployment files, aioengine will flag possible scope drift.
@@ -269,6 +343,12 @@ Or pass a task manually:
 
 ```bash
 npx aioengine@latest ci --task "update landing page headline"
+```
+
+Use a manual profile:
+
+```bash
+npx aioengine@latest ci --task "update GitHub Actions workflow" --profile ci
 ```
 
 Write a Markdown report:
@@ -364,9 +444,15 @@ CLAUDE.md
 npx aioengine@latest init --github
 npx aioengine@latest check
 
+# Save the current repo state before AI edits.
+npx aioengine@latest snapshot --name before-ai-edit
+
 # Ask Claude, Cursor, Codex, Copilot, or another AI coding tool to make a change.
 
-npx aioengine@latest scope "update landing page headline"
+# Check whether the changed files match the task.
+npx aioengine@latest scope "update landing page headline" --profile ui
+
+# Review risky files before committing.
 npx aioengine@latest review
 
 # Open a pull request.
@@ -386,7 +472,27 @@ It does not:
 - collect code or secrets
 - upload your source code to an aioengine server
 
+Snapshots are saved locally inside your repo under:
+
+```txt
+.aioengine/snapshots/
+```
+
+Snapshot files contain file hashes and project context, not full source code contents.
+
 The generated GitHub workflow uses limited permissions so it can read the repository, run the check, upload a report artifact, and comment on pull requests.
+
+## Early feedback
+
+aioengine is early. If you try it in a real repo, feedback is very welcome.
+
+Open an issue with:
+
+- what AI coding tool you use
+- whether setup was clear
+- what aioengine flagged correctly
+- what aioengine flagged incorrectly
+- what felt confusing or missing
 
 ## Current status
 
@@ -397,6 +503,7 @@ The first goal is simple: help AI-assisted developers catch risky or out-of-scop
 Future goals include:
 
 - better risk detection
+- snapshot comparison
 - prettier local reports
 - custom rules
 - saved reports

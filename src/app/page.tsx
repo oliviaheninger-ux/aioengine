@@ -11,34 +11,34 @@ const checks = [
 
 const toolkit = [
   {
-    title: "Check",
-    command: "npx aioengine@latest check",
-    description:
-      "Scan a repo for AI coding guardrails like project rules, config files, env safety, tests, and Git setup.",
-  },
-  {
     title: "Init",
-    command: "npx aioengine@latest init",
-    description:
-      "Create starter AI coding boundaries with .aioengine config, CLAUDE.md, and Cursor rules.",
-  },
-  {
-    title: "GitHub PR comments",
     command: "npx aioengine@latest init --github",
     description:
-      "Set up GitHub Actions so aioengine runs on pull requests and comments directly with a change-control report.",
+      "Set up local AI coding boundaries and GitHub PR comments in one command.",
   },
   {
-    title: "Scope",
-    command: 'npx aioengine@latest scope "update dashboard header"',
+    title: "Snapshot",
+    command: "npx aioengine@latest snapshot",
     description:
-      "Compare the task you gave your AI coding tool against the files it actually changed.",
+      "Save Git HEAD, tracked file hashes, and key repo context before AI changes code.",
+  },
+  {
+    title: "Scope profiles",
+    command: 'npx aioengine@latest scope "update UI" --profile ui',
+    description:
+      "Manually set the expected task type: ui, docs, cli, ci, or backend.",
   },
   {
     title: "Review",
     command: "npx aioengine@latest review",
     description:
       "Review current Git changes for sensitive files, dependency edits, config changes, and risky areas.",
+  },
+  {
+    title: "PR comments",
+    command: "npx aioengine@latest ci --report aioengine-report.md",
+    description:
+      "Run aioengine in GitHub Actions and post the change-control report directly on the PR.",
   },
 ];
 
@@ -59,17 +59,17 @@ const workflow = [
   },
   {
     step: "02",
-    title: "Make AI-generated changes",
+    title: "Snapshot the repo",
     description:
-      "Use Claude Code, Cursor, Codex, Copilot, or another AI coding tool like normal.",
-    command: "Ask your AI coding tool to make a change",
+      "Save Git HEAD, file hashes, and key project context before AI changes code.",
+    command: "npx aioengine@latest snapshot",
   },
   {
     step: "03",
-    title: "Check scope locally",
+    title: "Set the scope",
     description:
-      "Before committing, compare the task you gave AI against the files it actually changed.",
-    command: 'npx aioengine@latest scope "update landing page headline"',
+      "Tell aioengine what kind of change AI was supposed to make before reviewing files.",
+    command: 'npx aioengine@latest scope "update landing page" --profile ui',
   },
   {
     step: "04",
