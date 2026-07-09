@@ -11,6 +11,11 @@ export const metadata: Metadata = {
     template: `%s | ${siteConfig.name}`,
   },
   description: siteConfig.description,
+  icons: {
+    icon: "/aioengine-icon2.png",
+    shortcut: "/aioengine-icon2.png",
+    apple: "/aioengine-icon2.png",
+  },
 };
 
 export default function RootLayout({
