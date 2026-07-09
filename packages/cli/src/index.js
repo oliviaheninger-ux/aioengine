@@ -48,7 +48,7 @@ program
   .option("--report <path>", "Write a Markdown CI report to a file")
   .option(
     "--profile <profile>",
-    "Task profile override: ui, cli, docs, backend, ci"
+    "Task profile override: ui, cli, docs, marketing, backend, ci"
   )
   .action((options) => runCi(options));
 
@@ -58,7 +58,7 @@ program
   .argument("<task>", "Task description")
   .option(
     "--profile <profile>",
-    "Task profile override: ui, cli, docs, backend, ci"
+    "Task profile override: ui, cli, docs, marketing,backend, ci"
   )
   .action((task, options) => runScope(task, options));
 
@@ -937,6 +937,60 @@ function inferTaskProfile(task = "", forcedProfileId) {
         ".github/workflows",
       ],
     },
+      {
+  id: "marketing",
+  label: "Marketing / docs-site task",
+  strongKeywords: [
+    "docs and site",
+    "site and docs",
+    "documentation and landing page",
+    "landing page and docs",
+    "readme and landing page",
+    "website copy",
+    "homepage copy",
+    "product page",
+    "launch page",
+    "marketing page",
+  ],
+  keywords: [
+    "docs",
+    "documentation",
+    "readme",
+    "site",
+    "website",
+    "landing page",
+    "homepage",
+    "copy",
+    "pricing",
+    "cta",
+    "feature section",
+    "product messaging",
+  ],
+  allowed: [
+    "README",
+    "readme",
+    "docs/",
+    ".md",
+    "packages/cli/README.md",
+    "src/app/",
+    "src/components/",
+    "src/siteconfig.ts",
+    "public/",
+    "next-env.d.ts",
+  ],
+  sensitive: [
+    ".env",
+    "auth",
+    "stripe",
+    "billing",
+    "payment",
+    "supabase",
+    "migration",
+    "middleware",
+    "package.json",
+    ".github/workflows",
+  ],
+},
     {
       id: "cli",
       label: "CLI / tooling task",
