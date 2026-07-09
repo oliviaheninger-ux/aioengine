@@ -137,19 +137,53 @@ function runInit(options = {}) {
     );
   }
 
-  console.log(pc.bold("Next steps:"));
-  console.log(`  1. Run ${pc.cyan("aioengine check")}`);
-  console.log(`  2. Make or review AI-generated changes`);
-  console.log(`  3. Run ${pc.cyan('aioengine scope "describe the task"')}`);
-  console.log(`  4. Run ${pc.cyan("aioengine review")} before committing`);
+console.log(pc.bold("Next steps:"));
+console.log(`  1. Review the files aioengine created`);
 
-  if (options.github) {
-    console.log(
-      `  5. Open a pull request to see the ${pc.cyan(
-        "aioengine CI report"
-      )} comment`
-    );
-  }
+if (options.github) {
+  console.log(
+    `  2. Commit the setup files before running scope checks: ${pc.cyan(
+      "git add .aioengine CLAUDE.md .cursor .github && git commit -m \"Add aioengine guardrails\""
+    )}`
+  );
+  console.log(`  3. Run ${pc.cyan("aioengine check")}`);
+  console.log(
+    `  4. Before a larger AI edit, run ${pc.cyan(
+      "aioengine snapshot --name baseline"
+    )}`
+  );
+  console.log(`  5. Make or review AI-generated changes`);
+  console.log(
+    `  6. Run ${pc.cyan(
+      'aioengine scope "describe the task" --profile ui'
+    )}`
+  );
+  console.log(`  7. Run ${pc.cyan("aioengine review")} before committing`);
+  console.log(
+    `  8. Open a pull request to see the ${pc.cyan(
+      "aioengine CI report"
+    )} comment`
+  );
+} else {
+  console.log(
+    `  2. Commit the setup files before running scope checks: ${pc.cyan(
+      "git add .aioengine CLAUDE.md .cursor && git commit -m \"Add aioengine guardrails\""
+    )}`
+  );
+  console.log(`  3. Run ${pc.cyan("aioengine check")}`);
+  console.log(
+    `  4. Before a larger AI edit, run ${pc.cyan(
+      "aioengine snapshot --name baseline"
+    )}`
+  );
+  console.log(`  5. Make or review AI-generated changes`);
+  console.log(
+    `  6. Run ${pc.cyan(
+      'aioengine scope "describe the task" --profile ui'
+    )}`
+  );
+  console.log(`  7. Run ${pc.cyan("aioengine review")} before committing`);
+}
 }
 
 function runSnapshot(options = {}) {
@@ -937,60 +971,60 @@ function inferTaskProfile(task = "", forcedProfileId) {
         ".github/workflows",
       ],
     },
-      {
-  id: "marketing",
-  label: "Marketing / docs-site task",
-  strongKeywords: [
-    "docs and site",
-    "site and docs",
-    "documentation and landing page",
-    "landing page and docs",
-    "readme and landing page",
-    "website copy",
-    "homepage copy",
-    "product page",
-    "launch page",
-    "marketing page",
-  ],
-  keywords: [
-    "docs",
-    "documentation",
-    "readme",
-    "site",
-    "website",
-    "landing page",
-    "homepage",
-    "copy",
-    "pricing",
-    "cta",
-    "feature section",
-    "product messaging",
-  ],
-  allowed: [
-    "README",
-    "readme",
-    "docs/",
-    ".md",
-    "packages/cli/README.md",
-    "src/app/",
-    "src/components/",
-    "src/siteconfig.ts",
-    "public/",
-    "next-env.d.ts",
-  ],
-  sensitive: [
-    ".env",
-    "auth",
-    "stripe",
-    "billing",
-    "payment",
-    "supabase",
-    "migration",
-    "middleware",
-    "package.json",
-    ".github/workflows",
-  ],
-},
+          {
+      id: "marketing",
+      label: "Marketing / docs-site task",
+      strongKeywords: [
+        "docs and site",
+        "site and docs",
+        "documentation and landing page",
+        "landing page and docs",
+        "readme and landing page",
+        "website copy",
+        "homepage copy",
+        "product page",
+        "launch page",
+        "marketing page",
+      ],
+      keywords: [
+        "docs",
+        "documentation",
+        "readme",
+        "site",
+        "website",
+        "landing page",
+        "homepage",
+        "copy",
+        "pricing",
+        "cta",
+        "feature section",
+        "product messaging",
+      ],
+      allowed: [
+        "README",
+        "readme",
+        "docs/",
+        ".md",
+        "packages/cli/README.md",
+        "src/app/",
+        "src/components/",
+        "src/siteconfig.ts",
+        "public/",
+        "next-env.d.ts",
+      ],
+      sensitive: [
+        ".env",
+        "auth",
+        "stripe",
+        "billing",
+        "payment",
+        "supabase",
+        "migration",
+        "middleware",
+        "package.json",
+        ".github/workflows",
+      ],
+    },
     {
       id: "cli",
       label: "CLI / tooling task",
