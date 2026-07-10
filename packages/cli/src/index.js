@@ -215,7 +215,7 @@ function runInit(options = {}) {
 
   console.log(`  ${step}. Check whether the changed files match the task:`);
   console.log(
-    `     ${pc.cyan('aioengine scope "describe the task" --profile ui')}`
+    `     ${pc.cyan('aioengine scope "describe the task" --profile <profile>')}`
   );
   console.log(
     `     ${pc.dim("Profiles: ui, docs, cli, ci, backend, marketing")}`
@@ -645,7 +645,10 @@ function runCheck() {
 
   console.log(`  ${step}. After AI changes code, run:`);
   console.log(
-    `     ${pc.cyan('aioengine scope "describe the task" --profile ui')}`
+    `     ${pc.cyan('aioengine scope "describe the task" --profile <profile>')}`
+  );
+  console.log(
+    `     ${pc.dim("Profiles: ui, docs, cli, ci, backend, marketing")}`
   );
   console.log(`     ${pc.cyan("aioengine review")}`);
 }
