@@ -19,7 +19,8 @@
     "rules": "node ./src/index.js rules",
     "scope": "node ./src/index.js scope",
     "init": "node ./src/index.js init",
-    "ci": "node ./src/index.js ci"
+    "ci": "node ./src/index.js ci",
+    "mock-screenshot": "echo mock"
   },
   "keywords": [
     "ai",
