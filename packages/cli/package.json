@@ -1,6 +1,6 @@
 {
   "name": "aioengine",
-  "version": "0.1.17",
+  "version": "0.1.18",
   "description": "AI change control for developers using AI coding tools.",
   "main": "./src/index.js",
   "scripts": {
