@@ -220,6 +220,9 @@ function runInit(options = {}) {
   console.log(
     `     ${pc.dim("Profiles: ui, docs, cli, ci, backend, marketing")}`
   );
+  console.log(
+  `     ${pc.dim("Tip: use one profile per branch/PR when possible.")}`
+  );
   step += 1;
 
   console.log(`  ${step}. Run ${pc.cyan("aioengine review")} before committing`);
@@ -637,6 +640,9 @@ function runCheck() {
 
   console.log(`  ${step}. Before a larger AI edit, create a branch:`);
   console.log(`     ${pc.cyan("git checkout -b ai-change")}`);
+  console.log(
+  `     ${pc.dim("Tip: keep each branch focused on one task type when possible.")}`
+  );
   step += 1;
 
   console.log(`  ${step}. Save a snapshot after committing setup files:`);
@@ -649,6 +655,9 @@ function runCheck() {
   );
   console.log(
     `     ${pc.dim("Profiles: ui, docs, cli, ci, backend, marketing")}`
+  );
+  console.log(
+    `     ${pc.dim("Tip: use one profile per branch/PR when possible.")}`
   );
   console.log(`     ${pc.cyan("aioengine review")}`);
 }
