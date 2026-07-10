@@ -2,7 +2,16 @@
   "name": "aioengine",
   "version": "0.1.19",
   "description": "AI change control for developers using AI coding tools.",
+  "type": "module",
   "main": "./src/index.js",
+  "bin": {
+    "aioengine": "bin/aioengine.js"
+  },
+  "files": [
+    "src",
+    "bin",
+    "README.md"
+  ],
   "scripts": {
     "dev": "node ./src/index.js",
     "check": "node ./src/index.js check",
@@ -15,28 +24,33 @@
   "keywords": [
     "ai",
     "ai-coding",
-    "cli",
+    "change-control",
     "code-review",
-    "cursor",
+    "developer-tools",
+    "cli",
+    "github-actions",
     "claude",
-    "developer-tools"
+    "claude-code",
+    "cursor",
+    "copilot",
+    "codex",
+    "mcp"
   ],
-  "author": "",
-  "license": "UNLICENSED",
-  "type": "module",
-  "dependencies": {
-    "commander": "^15.0.0",
-    "picocolors": "^1.1.1"
+  "author": "Olivia Heninger",
+  "license": "MIT",
+  "homepage": "https://aioengine.com",
+  "bugs": {
+    "url": "https://github.com/oliviaheninger-ux/aioengine/issues"
   },
-  "files": [
-    "src",
-    "README.md",
-    "bin"
-  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/oliviaheninger-ux/aioengine.git"
+  },
   "engines": {
     "node": ">=18"
   },
-  "bin": {
-    "aioengine": "bin/aioengine.js"
+  "dependencies": {
+    "commander": "^15.0.0",
+    "picocolors": "^1.1.1"
   }
 }

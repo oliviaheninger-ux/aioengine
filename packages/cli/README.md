@@ -1,6 +1,6 @@
 # aioengine
 
-AI change control for developers using Claude Code, Cursor, Codex, Copilot, and MCP tools.
+AI change control for developers using AI coding tools.
 
 aioengine helps you review AI-generated code before you trust it. It scans your repo for missing guardrails, saves repo snapshots, checks changed files for risky edits, flags when AI may have wandered outside the requested task, and can comment directly on GitHub pull requests with a change-control report.
 
@@ -27,8 +27,9 @@ npx aioengine@latest snapshot
 After your AI coding tool makes changes, check whether the changes stayed in scope:
 
 ```bash
-npx aioengine@latest scope "update landing page headline" --profile ui
+npx aioengine@latest scope "example: update landing page headline" --profile <profile>
 ```
+Profiles: ui, docs, cli, ci, backend, marketing
 
 Then review risky files before committing:
 
@@ -46,8 +47,8 @@ npx aioengine@latest init
 npx aioengine@latest init --github
 npx aioengine@latest snapshot
 npx aioengine@latest snapshot --name before-ai-edit
-npx aioengine@latest scope "update landing page headline"
-npx aioengine@latest scope "update landing page headline" --profile ui
+npx aioengine@latest scope "example: update landing page headline"
+npx aioengine@latest scope "example: update landing page headline" --profile <profile>
 npx aioengine@latest review
 npx aioengine@latest ci
 npx aioengine@latest ci --profile ci
@@ -137,6 +138,7 @@ Creates missing files only:
 CLAUDE.md
 .cursor/rules/aioengine.mdc
 .github/workflows/aioengine.yml
+.gitignore
 ```
 
 The generated workflow runs aioengine on pull requests, writes a Markdown report, uploads the report as an artifact, and comments directly on the PR.
@@ -222,29 +224,31 @@ aioengine can automatically guess the task type from your task description, but 
 Use `--profile` when you already know what kind of change AI was supposed to make:
 
 ```bash
-npx aioengine@latest scope "update landing page headline" --profile ui
-npx aioengine@latest scope "update README docs" --profile docs
-npx aioengine@latest scope "add CLI command" --profile cli
-npx aioengine@latest scope "update GitHub Actions workflow" --profile ci
-npx aioengine@latest scope "add API route" --profile backend
+npx aioengine@latest scope "example: update landing page headline" --profile ui
+npx aioengine@latest scope "example: update README docs" --profile docs
+npx aioengine@latest scope "example: add CLI command" --profile cli
+npx aioengine@latest scope "example: update GitHub Actions workflow" --profile ci
+npx aioengine@latest scope "example: add API route" --profile backend
+npx aioengine@latest scope "example: update landing page" --profile marketing
 ```
 
 Available profiles:
 
 ```txt
-ui
-docs
-cli
-ci
-backend
+ui - app pages, components, site config, and public assets
+docs - README files, markdown docs, and written documentation
+cli - aioengine CLI code, package files, and CLI behavior
+ci - GitHub Actions and workflow changes
+backend - API routes, backend logic, database, auth, and server-side config
+marketing - mixed marketing site + docs changes, such as landing page copy and README updates
 ```
 
-Profiles help aioengine judge whether changed files make sense for the task.
+Profiles help aioengine judge whether changed files make sense for the task. If a PR mixes multiple task types, aioengine may flag scope drift. That is intentional: smaller, focused AI-assisted changes are easier to review safely.
 
 For example, this command tells aioengine the expected change is frontend/UI work:
 
 ```bash
-npx aioengine@latest scope "update dashboard header" --profile ui
+npx aioengine@latest scope "example: update dashboard header" --profile <profile>
 ```
 
 If AI also changed database migrations, billing files, or GitHub workflows, aioengine can flag those files as possible scope drift.
@@ -299,13 +303,13 @@ Checks whether changed files match the task you gave your AI coding tool.
 Run:
 
 ```bash
-npx aioengine@latest scope "update landing page headline"
+npx aioengine@latest scope "example: update landing page headline"
 ```
 
 Or manually set the expected profile:
 
 ```bash
-npx aioengine@latest scope "update landing page headline" --profile ui
+npx aioengine@latest scope "example: update landing page headline" --profile <profile>
 ```
 
 If the task sounds like a UI change but AI modified billing, database, env, dependency, CLI, or deployment files, aioengine will flag possible scope drift.
@@ -343,13 +347,13 @@ npx aioengine@latest ci
 Or pass a task manually:
 
 ```bash
-npx aioengine@latest ci --task "update landing page headline"
+npx aioengine@latest ci --task "example: update landing page headline"
 ```
 
 Use a manual profile:
 
 ```bash
-npx aioengine@latest ci --task "update GitHub Actions workflow" --profile ci
+npx aioengine@latest ci --task "example: update GitHub Actions workflow" --profile <profile>
 ```
 
 Write a Markdown report:
@@ -448,10 +452,10 @@ npx aioengine@latest check
 # Save the current repo state before AI edits.
 npx aioengine@latest snapshot --name before-ai-edit
 
-# Ask Claude, Cursor, Codex, Copilot, or another AI coding tool to make a change. Recommended: create a branch before larger AI-assisted changes, especially if you want GitHub PR comments.
+# Ask your AI coding tool to make a change. Recommended: create a branch before larger AI-assisted changes, especially if you want GitHub PR comments.
 
 # Check whether the changed files match the task.
-npx aioengine@latest scope "update landing page headline" --profile ui
+npx aioengine@latest scope "example: update landing page headline" --profile <profile>
 
 # Review risky files before committing.
 npx aioengine@latest review
@@ -485,15 +489,20 @@ The generated GitHub workflow uses limited permissions so it can read the reposi
 
 ## Early feedback
 
-aioengine is early. If you try it in a real repo, feedback is very welcome.
+aioengine is early and intentionally opinionated.
 
-Open an issue with:
+If you try it, feedback is welcome in GitHub Issues. Helpful feedback includes:
 
-- what AI coding tool you use
-- whether setup was clear
-- what aioengine flagged correctly
-- what aioengine flagged incorrectly
-- what felt confusing or missing
+- what AI coding tool you used
+- whether setup was confusing
+- whether aioengine flagged the right files
+- false positives or missed risky changes
+- what command output was unclear
+- what would make this useful in a real project
+
+Please open an issue for bugs, confusing output, false positives, or feature requests.
+
+https://github.com/oliviaheninger-ux/aioengine/issues
 
 ## Current status
 
@@ -514,4 +523,4 @@ Future goals include:
 
 ## License
 
-UNLICENSED
+MIT
