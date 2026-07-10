@@ -1001,6 +1001,8 @@ function createGithubWorkflowSafely(root, created, skipped) {
 }
 
 function getGithubActionsWorkflow() {
+  const version = getPackageVersion();
+
   return [
     "name: aioengine",
     "",
@@ -1032,7 +1034,7 @@ function getGithubActionsWorkflow() {
     "          package-manager-cache: false",
     "",
     "      - name: Run aioengine",
-    "        run: npx aioengine@latest ci --report aioengine-report.md",
+    `        run: npx -y aioengine@${version} ci --report aioengine-report.md`,
     "",
     "      - name: Comment aioengine report on PR",
     "        if: always() && github.event_name == 'pull_request'",
@@ -1050,6 +1052,22 @@ function getGithubActionsWorkflow() {
     "          path: aioengine-report.md",
     "",
   ].join("\n");
+}
+
+function getPackageVersion() {
+  try {
+    const packageJson = JSON.parse(
+      fs.readFileSync(new URL("../package.json", import.meta.url), "utf8")
+    );
+
+    return packageJson.version || "latest";
+  } catch {
+    return "latest";
+  }
+}
+
+function formatDisplayPath(value) {
+  return String(value).replace(/\\/g, "/");
 }
 
 function getChangedFiles(root) {
@@ -1557,7 +1575,8 @@ function printSection(title, items, color) {
   console.log(pc.bold(colorFn(title)));
 
   items.forEach((item) => {
-    console.log(`  ${colorFn(icon)} ${item}`);
+    const displayItem = formatDisplayPath(item);
+    console.log(`  ${colorFn(icon)} ${displayItem}`);
   });
 
   console.log("");
