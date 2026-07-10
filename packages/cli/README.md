@@ -118,6 +118,7 @@ If `CLAUDE.md` already exists, aioengine leaves it untouched and saves suggested
 ```txt
 .aioengine/suggested-claude-rules.md
 ```
+On Windows, Git may show LF/CRLF line-ending warnings when committing. These are normal and do not mean aioengine failed.
 
 ## `aioengine init --github`
 
@@ -447,7 +448,7 @@ npx aioengine@latest check
 # Save the current repo state before AI edits.
 npx aioengine@latest snapshot --name before-ai-edit
 
-# Ask Claude, Cursor, Codex, Copilot, or another AI coding tool to make a change.
+# Ask Claude, Cursor, Codex, Copilot, or another AI coding tool to make a change. Recommended: create a branch before larger AI-assisted changes, especially if you want GitHub PR comments.
 
 # Check whether the changed files match the task.
 npx aioengine@latest scope "update landing page headline" --profile ui
