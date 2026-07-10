@@ -1,52 +1,92 @@
-import { Logo } from "@/components/Logo";
-import { siteConfig } from "@/siteconfig";
-import { CopyCommand } from "@/components/CopyCommand";
+"use client";
 
-const checks = [
-  "Detect missing AI coding rules",
-  "Flag risky files before commit",
-  "Catch scope drift from AI edits",
-  "Review dependency and config changes",
+import { useEffect, useState } from "react";
+
+import { CopyCommand } from "@/components/CopyCommand";
+import { Logo } from "@/components/Logo";
+
+const npmUrl = "https://www.npmjs.com/package/aioengine";
+const issuesUrl = "https://github.com/oliviaheninger-ux/aioengine/issues";
+const repoUrl = "https://github.com/oliviaheninger-ux/aioengine";
+
+const reportFiles = [
+  {
+    path: "README.md",
+    status: "in scope",
+    tone: "green",
+  },
+  {
+    path: "packages/cli/package.json",
+    status: "possible scope drift",
+    tone: "yellow",
+  },
+  {
+    path: ".github/workflows/aioengine.yml",
+    status: "possible scope drift",
+    tone: "yellow",
+  },
 ];
 
 const toolkit = [
   {
     title: "Init",
-    command: "npx aioengine@latest init --github",
+    command: "npx -y aioengine@latest init --github",
     description:
-      "Set up local AI coding boundaries and GitHub PR comments in one command.",
+      "Set up local AI coding boundaries, Claude/Cursor rules, and GitHub PR reports in one command.",
+  },
+  {
+    title: "Check",
+    command: "npx -y aioengine@latest check",
+    description:
+      "Review your repo setup for missing guardrails, risky files, missing GitHub Actions, and weak review signals.",
   },
   {
     title: "Snapshot",
-    command: "npx aioengine@latest snapshot",
+    command: "npx -y aioengine@latest snapshot --name checkpoint",
     description:
-      "Save Git HEAD, tracked file hashes, and key repo context before AI changes code.",
+      "Save Git HEAD, file hashes, and repo context before a larger AI-assisted change.",
   },
   {
-    title: "Scope profiles",
-    command: 'npx aioengine@latest scope "update UI" --profile ui',
+    title: "Scope",
+    command: 'npx -y aioengine@latest scope "example: update README docs" --profile <profile>',
     description:
-      "Manually set the expected task type: ui, docs, cli, marketing, backend, or ci.",
+      "Tell aioengine what kind of task AI was supposed to do, then flag files outside that scope. Profiles: ui, docs, cli, ci, backend, marketing",
   },
   {
     title: "Review",
-    command: "npx aioengine@latest review",
+    command: "npx -y aioengine@latest review",
     description:
       "Review current Git changes for sensitive files, dependency edits, config changes, and risky areas.",
   },
   {
-    title: "PR comments",
-    command: "npx aioengine@latest ci --report aioengine-report.md",
+    title: "CI report",
+    command: "npx -y aioengine@latest ci --report aioengine-report.md",
     description:
-      "Run aioengine in GitHub Actions and post the change-control report directly on the PR.",
+      "Generate a Markdown report for GitHub Actions, PR comments, and review artifacts.",
   },
 ];
 
 const problems = [
-  "AI touched auth when you asked for a UI change",
-  "A package file changed and you didn’t notice",
-  "Cursor or Claude edited files outside the task",
-  "Your repo has no AI coding rules or review boundaries",
+  {
+    title: "AI can drift outside the prompt",
+    description:
+      "A docs request can turn into package, workflow, auth, or config changes if you are not watching the diff closely.",
+  },
+  {
+    title: "Bigger diffs are harder to trust",
+    description:
+      "AI tools move fast, but reviewing a wide diff across unrelated files still takes real human attention.",
+  },
+  {
+    title: "Risky files need extra attention",
+    description:
+      "Package files, workflows, auth, billing, env files, and backend config should not slip through as casual edits.",
+  },
+  {
+    title: "Snapshots make reviews easier",
+    description:
+      "A snapshot records Git HEAD, tracked file hashes, and repo context before AI changes code, giving you a known checkpoint.",
+  },
 ];
 
 const workflow = [
@@ -54,81 +94,63 @@ const workflow = [
     step: "01",
     title: "Install guardrails",
     description:
-      "Set up local AI coding rules and GitHub pull request checks in one command.",
-    command: "npx aioengine@latest init --github",
+      "Create local AI coding rules, a root .gitignore, snapshot safety files, and optional GitHub Actions.",
+    command: "npx -y aioengine@latest init --github",
   },
   {
     step: "02",
-    title: "Snapshot the repo",
+    title: "Snapshot first",
     description:
-      "Save Git HEAD, file hashes, and key project context before AI changes code.",
-    command: "npx aioengine@latest snapshot",
+      "Save a checkpoint before a larger AI edit so the review starts from a known repo state.",
+    command: "npx -y aioengine@latest snapshot --name checkpoint",
   },
   {
     step: "03",
-    title: "Set the scope",
+    title: "Keep one task type",
     description:
-      "Tell aioengine what kind of change AI was supposed to make before reviewing files.",
-    command: 'npx aioengine@latest scope "update landing page" --profile ui',
+      "Use one focused branch or PR when possible. Choose a profile like ui, docs, cli, ci, backend, or marketing.",
+    command: 'npx -y aioengine@latest scope "example: update README docs" --profile <profile>',
   },
   {
     step: "04",
-    title: "Open a pull request",
+    title: "Review the diff",
     description:
-      "aioengine runs in GitHub Actions and comments directly on the PR with a change-control report.",
+      "Run review before committing so risky files, dependency edits, and config changes are easier to notice.",
+    command: "npx -y aioengine@latest review",
+  },
+  {
+    step: "05",
+    title: "Open a PR",
+    description:
+      "aioengine runs in GitHub Actions and posts the change-control report directly on the pull request.",
     command: "Open a GitHub pull request",
   },
 ];
 
-const pricing = [
-  {
-    name: "Free",
-    price: "$0",
-    description: "Local and GitHub PR checks for AI-assisted developers.",
-    features: [
-      "Run aioengine locally",
-      "Setup score",
-      "Scope checks",
-      "Risky file review",
-      "Claude and Cursor rule generation",
-      "GitHub PR comments",
-      "Markdown CI report artifact",
-    ],
-    cta: "Start with init --github",
-    href: "https://www.npmjs.com/package/aioengine",
-  },
-  {
-    name: "Solo",
-    price: "$12/mo",
-    description: "For developers who want saved reports and custom rules.",
-    features: [
-      "Saved report history",
-      "Custom risk rules",
-      "Better scope profiles",
-      "Ignored path rules",
-      "Release check summaries",
-      "Priority CLI updates",
-    ],
-    cta: "Coming soon",
-    href: "https://www.npmjs.com/package/aioengine",
-  },
-  {
-    name: "Team",
-    price: "$29/mo",
-    description: "For teams and agencies that want shared AI change-control policies.",
-    features: [
-      "Team policy management",
-      "Multiple repo reporting",
-      "Dashboard history",
-      "Sensitive file policies",
-      "Shared allow/block lists",
-      "Slack or email alerts",
-    ],
-    cta: "Coming soon",
-    href: "https://www.npmjs.com/package/aioengine",
-  },
+const freeFeatures = [
+  "Local repo setup checks",
+  "Root .gitignore creation",
+  "Claude Code guardrails",
+  "Cursor rules",
+  "Snapshot checkpoints",
+  "Scope profiles",
+  "Risky file review",
+  "GitHub Actions workflow",
+  "Pinned workflow version",
+  "Markdown CI reports",
+  "GitHub PR comments",
 ];
 
+const comingSoonFeatures = [
+  "Saved report history",
+  "Custom project rules",
+  "Team policy presets",
+  "Dashboard summaries",
+  "Multiple repo views",
+  "Slack or email alerts",
+  "Upgrade workflow helper",
+  "More AI tool-specific integrations",
+];
 export default function Home() {
   return (
     <main className="min-h-screen overflow-x-hidden bg-[#061211] text-white">
@@ -151,13 +173,16 @@ export default function Home() {
             <a href="#workflow" className="transition hover:text-white">
               Workflow
             </a>
-            <a href="#pricing" className="transition hover:text-white">
-              Pricing
+            <a href="#free" className="transition hover:text-white">
+              Start Free
+            </a>
+            <a href="#legal" className="transition hover:text-white">
+              Legal
             </a>
           </nav>
 
-           <a
-            href="https://www.npmjs.com/package/aioengine"
+          <a
+            href={npmUrl}
             target="_blank"
             rel="noreferrer"
             className="hidden rounded-full border border-white/15 px-4 py-2 text-sm font-medium text-white/90 transition hover:border-white/30 hover:bg-white/10 sm:inline-flex"
@@ -176,21 +201,23 @@ export default function Home() {
             </div>
 
             <h1 className="max-w-4xl text-balance text-4xl font-semibold tracking-tight text-white sm:text-5xl lg:text-6xl">
-              AI change control for developers.
+              Catch AI scope drift before it merges.
             </h1>
 
             <p className="mt-5 max-w-2xl text-pretty text-base leading-7 text-white/70 sm:text-lg">
-               Run aioengine locally, in CI, or directly on GitHub pull requests. Install AI change-control guardrails and GitHub PR comments in one command, so risky or out-of-scope AI-generated code gets caught before it merges.
+              aioengine adds AI change-control guardrails to your repo. Run it
+              locally, in CI, or on GitHub pull requests to catch risky or
+              out-of-scope AI-generated code before it gets committed or merged.
             </p>
 
             <div className="mt-7 flex w-full flex-col gap-3 sm:flex-row sm:items-center">
               <a
-              href="https://www.npmjs.com/package/aioengine"
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex w-full items-center justify-center rounded-full bg-gradient-to-r from-sky-400 via-cyan-300 to-emerald-300 px-5 py-3 text-sm font-semibold text-[#061211] shadow-lg shadow-cyan-500/20 transition hover:scale-[1.01] sm:w-auto"
+                href={npmUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex w-full items-center justify-center rounded-full bg-gradient-to-r from-sky-400 via-cyan-300 to-emerald-300 px-5 py-3 text-sm font-semibold text-[#061211] shadow-lg shadow-cyan-500/20 transition hover:scale-[1.01] sm:w-auto"
               >
-             View on npm
+                View on npm
               </a>
 
               <a
@@ -217,41 +244,50 @@ export default function Home() {
               <div className="space-y-3 p-4 text-sm sm:p-5">
                 <div className="flex min-w-0 items-start gap-2 rounded-2xl bg-white/[0.04] p-3">
                   <span className="shrink-0 text-emerald-300">$</span>
-                  <CopyCommand command="npx aioengine@latest init --github" />
+                  <CopyCommand command='npx -y aioengine@latest init --github' />
                 </div>
 
-                <div className="rounded-2xl border border-white/10 bg-[#071b19] p-4">
-                  <p className="text-sm font-semibold text-white">
-                    aioengine Check
-                  </p>
-                  <p className="mt-1 text-xs text-white/45">
-                    AI change control for developers
-                  </p>
+                <div className="rounded-2xl border border-yellow-300/20 bg-[#071b19] p-4">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                    <div>
+                      <p className="text-sm font-semibold text-white">
+                        aioengine Scope
+                      </p>
+                      <p className="mt-1 text-xs text-white/45">
+                        AI change control for developers
+                      </p>
+                    </div>
+                    <StatusPill label="Review required" tone="yellow" />
+                  </div>
 
-                  <div className="mt-4 grid gap-2 text-xs text-white/70 sm:grid-cols-2">
-                    <MiniStat value="96/100" label="Setup score" />
-                    <MiniStat value="2" label="Warnings found" />
+                  <div className="mt-4 grid gap-2 text-xs text-white/70 sm:grid-cols-3">
+                    <MiniStat value="3" label="Changed files" />
+                    <MiniStat value="2" label="Need review" />
+                    <MiniStat value="docs" label="Expected profile" />
                   </div>
 
                   <div className="mt-4 space-y-2 text-xs">
-                    <p className="break-words text-yellow-200">
-                      ! No GitHub Actions folder detected.
-                    </p>
-                    <p className="break-words text-yellow-200">
-                      ! No obvious tests detected.
-                    </p>
                     <p className="break-words text-emerald-200">
-                      ✓ Claude rules detected
+                      ✓ README.md — in scope
                     </p>
-                    <p className="break-words text-emerald-200">
-                      ✓ Cursor rules detected
+                    <p className="break-words text-yellow-200">
+                      ! packages/cli/package.json — possible scope drift
+                    </p>
+                    <p className="break-words text-yellow-200">
+                      ! .github/workflows/aioengine.yml — possible scope drift
                     </p>
                   </div>
+
+                  <p className="mt-4 rounded-2xl border border-yellow-300/15 bg-yellow-300/10 p-3 text-xs leading-5 text-yellow-50/85">
+                    AI changed files outside the expected task type. Smaller,
+                    focused branches are easier to review safely.
+                  </p>
                 </div>
               </div>
             </div>
           </div>
-                    <div className="min-w-0">
+
+          <div className="min-w-0">
             <div className="mx-auto w-full max-w-full overflow-hidden rounded-[2rem] border border-white/10 bg-white/[0.04] p-4 shadow-2xl shadow-black/30 backdrop-blur sm:p-5">
               <div className="rounded-[1.5rem] border border-white/10 bg-[#071b19] p-4 sm:p-5">
                 <div className="flex flex-col gap-3 border-b border-white/10 pb-5 sm:flex-row sm:items-center sm:justify-between">
@@ -260,38 +296,61 @@ export default function Home() {
                       AI change report
                     </p>
                     <p className="mt-1 text-xs text-white/45">
-                      Generated before commit
+                      Generated before commit or on a pull request
                     </p>
                   </div>
-                  <StatusPill label="Local only" />
+                  <StatusPill label="Scope drift detected" tone="yellow" />
+                </div>
+
+                <div className="mt-5 grid gap-3 sm:grid-cols-3">
+                  <MiniStat value="1" label="In scope" />
+                  <MiniStat value="2" label="Flagged" />
+                  <MiniStat value="PR" label="Report ready" />
                 </div>
 
                 <div className="mt-5 space-y-3">
-                  {checks.map((check) => (
+                  {reportFiles.map((file) => (
                     <div
-                      key={check}
+                      key={file.path}
                       className="flex min-w-0 items-start gap-3 rounded-2xl border border-white/10 bg-white/[0.035] p-3"
                     >
-                      <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-300/15 text-xs text-emerald-200">
-                        ✓
+                      <span
+                        className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-xs ${
+                          file.tone === "green"
+                            ? "bg-emerald-300/15 text-emerald-200"
+                            : "bg-yellow-300/15 text-yellow-200"
+                        }`}
+                      >
+                        {file.tone === "green" ? "✓" : "!"}
                       </span>
-                      <span className="min-w-0 break-words text-sm text-white/75">
-                        {check}
-                      </span>
+                      <div className="min-w-0">
+                        <p className="break-words text-sm text-white/80">
+                          {file.path}
+                        </p>
+                        <p
+                          className={`mt-1 text-xs ${
+                            file.tone === "green"
+                              ? "text-emerald-200/70"
+                              : "text-yellow-200/80"
+                          }`}
+                        >
+                          {file.status}
+                        </p>
+                      </div>
                     </div>
                   ))}
                 </div>
 
                 <div className="mt-5 rounded-2xl border border-cyan-300/15 bg-cyan-300/10 p-4">
                   <p className="text-xs font-semibold uppercase tracking-[0.2em] text-cyan-100/70">
-                    Scope result
+                    Why this helps
                   </p>
                   <p className="mt-3 text-sm font-medium text-white">
-                    No obvious scope drift detected.
+                    aioengine does not replace code review.
                   </p>
                   <p className="mt-2 text-sm leading-6 text-white/60">
-                    Still review the diff normally before committing
-                    AI-generated code.
+                    It points your attention at files that deserve a closer look
+                    before AI-generated code lands.
                   </p>
                 </div>
               </div>
@@ -299,8 +358,7 @@ export default function Home() {
           </div>
         </div>
       </section>
-
-      <section
+            <section
         id="toolkit"
         className="relative z-10 border-y border-white/10 bg-white/[0.025] px-4 py-14 sm:px-6 sm:py-20 lg:px-8"
       >
@@ -318,7 +376,7 @@ export default function Home() {
             </p>
           </div>
 
-          <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+          <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {toolkit.map((item) => (
               <div
                 key={item.title}
@@ -328,8 +386,8 @@ export default function Home() {
 
                 <div className="mt-4 max-w-full overflow-hidden rounded-2xl border border-white/10 bg-black/30 p-3">
                   <code className="block whitespace-pre-wrap break-words text-xs leading-5 text-cyan-100">
-                  {item.command}
-                </code>
+                    {item.command}
+                  </code>
                 </div>
 
                 <p className="mt-4 text-sm leading-6 text-white/60">
@@ -354,26 +412,47 @@ export default function Home() {
               A small prompt can create a big diff. aioengine gives you a
               simple safety pass before you commit changes from AI coding tools.
             </p>
+
+            <div className="mt-6 rounded-3xl border border-cyan-300/15 bg-cyan-300/10 p-5">
+              <p className="text-sm font-semibold text-cyan-100">
+                Why snapshots are included
+              </p>
+              <p className="mt-3 text-sm leading-6 text-white/65">
+                Before a larger AI edit, aioengine can save a local checkpoint
+                with Git HEAD, tracked file hashes, and key repo context. That
+                gives you a clear before-state, so AI changes are easier to
+                inspect, compare, and roll back from.
+              </p>
+              <div className="mt-4 rounded-2xl border border-white/10 bg-black/25 p-3">
+                <code className="block break-words text-xs leading-5 text-cyan-100">
+                  npx -y aioengine@latest snapshot --name checkpoint
+                </code>
+              </div>
+            </div>
           </div>
 
           <div className="grid min-w-0 gap-4 sm:grid-cols-2">
             {problems.map((problem) => (
               <div
-                key={problem}
+                key={problem.title}
                 className="min-w-0 rounded-3xl border border-white/10 bg-white/[0.035] p-5"
               >
                 <span className="flex h-9 w-9 items-center justify-center rounded-2xl bg-yellow-300/10 text-yellow-200">
                   !
                 </span>
-                <p className="mt-4 break-words text-sm leading-6 text-white/70">
-                  {problem}
+                <h3 className="mt-4 text-base font-semibold text-white">
+                  {problem.title}
+                </h3>
+                <p className="mt-3 break-words text-sm leading-6 text-white/65">
+                  {problem.description}
                 </p>
               </div>
             ))}
           </div>
         </div>
       </section>
-            <section
+
+      <section
         id="workflow"
         className="relative z-10 border-y border-white/10 bg-white/[0.025] px-4 py-14 sm:px-6 sm:py-20 lg:px-8"
       >
@@ -385,9 +464,13 @@ export default function Home() {
             <h2 className="mt-3 text-balance text-3xl font-semibold tracking-tight sm:text-4xl">
               Review AI-generated code before it lands.
             </h2>
+            <p className="mt-4 text-pretty leading-7 text-white/65">
+              aioengine works best when each branch or pull request has one
+              clear task type.
+            </p>
           </div>
 
-          <div className="mt-10 grid gap-4 lg:grid-cols-4">
+          <div className="mt-10 grid gap-4 md:grid-cols-2 lg:grid-cols-5">
             {workflow.map((item) => (
               <div
                 key={item.step}
@@ -401,81 +484,206 @@ export default function Home() {
                   {item.description}
                 </p>
                 <div className="mt-5 max-w-full overflow-hidden rounded-2xl border border-white/10 bg-black/30 p-3">
-                <code className="block whitespace-pre-wrap break-words text-xs leading-5 text-cyan-100">
-                  {item.command}
-                </code>
-              </div>
+                  <code className="block whitespace-pre-wrap break-words text-xs leading-5 text-cyan-100">
+                    {item.command}
+                  </code>
+                </div>
               </div>
             ))}
+          </div>
+        </div>
+      </section>
+            <section
+        id="free"
+        className="relative z-10 px-4 py-14 sm:px-6 sm:py-20 lg:px-8"
+      >
+        <div className="mx-auto w-full max-w-6xl">
+          <div className="max-w-2xl">
+            <p className="text-sm font-semibold text-emerald-200">
+              Free public CLI
+            </p>
+            <h2 className="mt-3 text-balance text-3xl font-semibold tracking-tight sm:text-4xl">
+              Free guardrails for AI-assisted developers.
+            </h2>
+            <p className="mt-4 text-pretty leading-7 text-white/65">
+              aioengine is free to start. No account required. No dashboard
+              required. Run it locally or add it to GitHub Actions for pull
+              request reports.
+            </p>
+          </div>
+
+          <div className="mt-10 grid gap-4 lg:grid-cols-[1fr_0.85fr]">
+            <div className="rounded-3xl border border-emerald-300/20 bg-emerald-300/10 p-5 sm:p-6">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                  <h3 className="text-2xl font-semibold">Free</h3>
+                  <p className="mt-3 text-4xl font-semibold">$0</p>
+                  <p className="mt-3 text-sm leading-6 text-white/65">
+                    Local and GitHub PR checks for AI-assisted developers.
+                  </p>
+                </div>
+                <StatusPill label="Live now" tone="green" />
+              </div>
+
+              <ul className="mt-6 grid gap-3 text-sm text-white/75 sm:grid-cols-2">
+                {freeFeatures.map((feature) => (
+                  <li key={feature} className="flex min-w-0 gap-3">
+                    <span className="shrink-0 text-emerald-200">✓</span>
+                    <span className="min-w-0 break-words">{feature}</span>
+                  </li>
+                ))}
+              </ul>
+
+              <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+                <a
+                  href={npmUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex w-full items-center justify-center rounded-full border border-cyan-300/25 bg-cyan-300/10 px-4 py-3 text-sm font-semibold text-cyan-50 transition hover:border-cyan-300/40 hover:bg-cyan-300/15 sm:w-auto"
+                >
+                  Start on npm
+                </a>
+                <a
+                  href={issuesUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex w-full items-center justify-center rounded-full border border-white/15 px-4 py-3 text-sm font-semibold text-white/85 transition hover:border-white/30 hover:bg-white/10 sm:w-auto"
+                >
+                  Send feedback
+                </a>
+              </div>
+            </div>
+
+            <div className="rounded-3xl border border-white/10 bg-white/[0.035] p-5 sm:p-6">
+              <StatusPill label="Coming soon" tone="cyan" />
+              <h3 className="mt-4 text-2xl font-semibold">
+                Future features
+              </h3>
+              <p className="mt-3 text-sm leading-6 text-white/60">
+                Paid features will focus on teams, history, policy management,
+                and workflow visibility. The public CLI remains the starting
+                point.
+              </p>
+
+              <ul className="mt-6 space-y-3 text-sm text-white/70">
+                {comingSoonFeatures.map((feature) => (
+                  <li key={feature} className="flex min-w-0 gap-3">
+                    <span className="shrink-0 text-cyan-200">→</span>
+                    <span className="min-w-0 break-words">{feature}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
           </div>
         </div>
       </section>
 
       <section
-        id="pricing"
-        className="relative z-10 px-4 py-14 sm:px-6 sm:py-20 lg:px-8"
+        id="legal"
+        className="relative z-10 border-y border-white/10 bg-white/[0.025] px-4 py-14 sm:px-6 sm:py-20 lg:px-8"
       >
         <div className="mx-auto w-full max-w-6xl">
-  <div className="max-w-2xl">
-    <p className="text-sm font-semibold text-emerald-200">
-      Pricing direction
-    </p>
-    <h2 className="mt-3 text-balance text-3xl font-semibold tracking-tight sm:text-4xl">
-      Free guardrails now. Paid when teams need history, policies, and control.
-    </h2>
-    <p className="mt-4 text-pretty leading-7 text-white/65">
-      The public CLI starts free, including local checks and GitHub PR comments.
-      Paid features will focus on saved reports, custom rules, dashboard history,
-      team policies, and continuous AI change control.
-    </p>
-  </div>
+          <div className="max-w-2xl">
+            <p className="text-sm font-semibold text-cyan-200">
+              Privacy, terms, and support
+            </p>
+            <h2 className="mt-3 text-balance text-3xl font-semibold tracking-tight sm:text-4xl">
+              Built to be simple, local-first, and transparent.
+            </h2>
+            <p className="mt-4 text-pretty leading-7 text-white/65">
+              aioengine is an early developer tool. The CLI is designed to run
+              in your repo and produce local or CI reports without requiring an
+              account.
+            </p>
+          </div>
 
           <div className="mt-10 grid gap-4 lg:grid-cols-3">
-            {pricing.map((plan) => (
-              <div
-                key={plan.name}
-                className="flex min-w-0 flex-col rounded-3xl border border-white/10 bg-white/[0.035] p-5 sm:p-6"
-              >
-                <div>
-                  <h3 className="text-xl font-semibold">{plan.name}</h3>
-                  <p className="mt-3 text-3xl font-semibold">{plan.price}</p>
-                  <p className="mt-3 text-sm leading-6 text-white/60">
-                    {plan.description}
-                  </p>
-                </div>
-
-                <ul className="mt-6 space-y-3 text-sm text-white/70">
-                  {plan.features.map((feature) => (
-                    <li key={feature} className="flex min-w-0 gap-3">
-                      <span className="shrink-0 text-emerald-200">✓</span>
-                      <span className="min-w-0 break-words">{feature}</span>
-                    </li>
-                  ))}
-                </ul>
-
-                <div className="mt-6">
-                  {plan.href ? (
-                    <a
-                      href={plan.href}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="inline-flex w-full items-center justify-center rounded-full border border-cyan-300/25 bg-cyan-300/10 px-4 py-3 text-sm font-semibold text-cyan-50 transition hover:border-cyan-300/40 hover:bg-cyan-300/15"
-                    >
-                      {plan.cta}
-                    </a>
-                  ) : (
-                    <div className="inline-flex w-full items-center justify-center rounded-full border border-white/15 px-4 py-3 text-sm font-semibold text-white/80">
-                      {plan.cta}
-                    </div>
-                  )}
-                </div>
+            <div className="rounded-3xl border border-white/10 bg-[#071b19] p-5">
+              <h3 className="text-lg font-semibold">Privacy policy</h3>
+              <p className="mt-3 text-xs text-white/40">
+                Last updated: July 2026
+              </p>
+              <div className="mt-4 space-y-3 text-sm leading-6 text-white/65">
+                <p>
+                  The public aioengine CLI does not require an account and does
+                  not intentionally collect your source code, secrets, or repo
+                  contents.
+                </p>
+                <p>
+                  CLI output and reports are generated locally or inside your
+                  GitHub Actions environment. If you open an issue on GitHub,
+                  anything you post there is public.
+                </p>
+                <p>
+                  This website may store a small local preference so the cookie
+                  notice does not keep appearing. No analytics cookies are
+                  required to use the site.
+                </p>
               </div>
-            ))}
+            </div>
+
+            <div className="rounded-3xl border border-white/10 bg-[#071b19] p-5">
+              <h3 className="text-lg font-semibold">Terms and conditions</h3>
+              <p className="mt-3 text-xs text-white/40">
+                Last updated: July 2026
+              </p>
+              <div className="mt-4 space-y-3 text-sm leading-6 text-white/65">
+                <p>
+                  aioengine is provided as-is as an early developer tool. It may
+                  contain bugs, false positives, missed warnings, or incomplete
+                  checks.
+                </p>
+                <p>
+                  You are responsible for reviewing your own code, testing your
+                  changes, protecting secrets, and deciding what to commit or
+                  merge.
+                </p>
+                <p>
+                  aioengine does not guarantee that code is safe, secure,
+                  compliant, correct, or production-ready. Use it as an
+                  additional review signal, not as a replacement for engineering
+                  judgment.
+                </p>
+              </div>
+            </div>
+
+            <div className="rounded-3xl border border-white/10 bg-[#071b19] p-5">
+              <h3 className="text-lg font-semibold">Support and feedback</h3>
+              <p className="mt-4 text-sm leading-6 text-white/65">
+                Found a bug, confusing output, false positive, or missing
+                feature? Open a GitHub Issue so it can be tracked publicly.
+              </p>
+
+              <div className="mt-5 space-y-3">
+                <a
+                  href={issuesUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex w-full items-center justify-center rounded-full border border-cyan-300/25 bg-cyan-300/10 px-4 py-3 text-sm font-semibold text-cyan-50 transition hover:border-cyan-300/40 hover:bg-cyan-300/15"
+                >
+                  Open a support issue
+                </a>
+                <a
+                  href={repoUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex w-full items-center justify-center rounded-full border border-white/15 px-4 py-3 text-sm font-semibold text-white/85 transition hover:border-white/30 hover:bg-white/10"
+                >
+                  View GitHub repo
+                </a>
+              </div>
+
+              <p className="mt-4 text-xs leading-5 text-white/45">
+                Helpful feedback includes your AI coding tool, what command you
+                ran, what was confusing, and whether the scope result felt
+                correct.
+              </p>
+            </div>
           </div>
         </div>
       </section>
 
-      <section className="relative z-10 px-4 pb-16 sm:px-6 sm:pb-24 lg:px-8">
+      <section className="relative z-10 px-4 py-14 sm:px-6 sm:py-20 lg:px-8">
         <div className="mx-auto w-full max-w-6xl overflow-hidden rounded-[2rem] border border-cyan-300/15 bg-gradient-to-br from-cyan-300/10 via-white/[0.04] to-emerald-300/10 p-6 sm:p-8 lg:p-10">
           <div className="grid gap-8 lg:grid-cols-[1fr_0.9fr] lg:items-center">
             <div className="min-w-0">
@@ -494,7 +702,7 @@ export default function Home() {
 
             <div className="min-w-0 rounded-3xl border border-white/10 bg-black/35 p-4">
               <a
-                href="https://www.npmjs.com/package/aioengine"
+                href={npmUrl}
                 target="_blank"
                 rel="noreferrer"
                 aria-label="View aioengine on npm"
@@ -502,7 +710,7 @@ export default function Home() {
               >
                 <span className="shrink-0 text-emerald-300">$</span>
                 <code className="block min-w-0 overflow-x-auto whitespace-nowrap text-cyan-100">
-                  npx aioengine@latest init --github
+                  npx -y aioengine@latest init --github
                 </code>
               </a>
             </div>
@@ -511,19 +719,38 @@ export default function Home() {
       </section>
 
       <footer className="relative z-10 border-t border-white/10 px-4 py-8 sm:px-6 lg:px-8">
-        <div className="mx-auto flex w-full max-w-6xl flex-col gap-4 text-sm text-white/45 sm:flex-row sm:items-center sm:justify-between">
+        <div className="mx-auto flex w-full max-w-6xl flex-col gap-5 text-sm text-white/45 lg:flex-row lg:items-center lg:justify-between">
           <div className="min-w-0">
             <Logo className="h-8 w-auto max-w-[150px]" />
+            <p className="mt-3 break-words">
+              AI change control for developers using AI coding tools.
+            </p>
           </div>
-          <p className="break-words">
-            AI change control for developers using AI coding tools.
-          </p>
+
+          <div className="flex flex-wrap gap-x-5 gap-y-2">
+            <a href={npmUrl} target="_blank" rel="noreferrer" className="hover:text-white">
+              npm
+            </a>
+            <a href={repoUrl} target="_blank" rel="noreferrer" className="hover:text-white">
+              GitHub
+            </a>
+            <a href={issuesUrl} target="_blank" rel="noreferrer" className="hover:text-white">
+              Support
+            </a>
+            <a href="#legal" className="hover:text-white">
+              Privacy
+            </a>
+            <a href="#legal" className="hover:text-white">
+              Terms
+            </a>
+          </div>
         </div>
       </footer>
+
+      <CookieNotice />
     </main>
   );
 }
-
 function MiniStat({ value, label }: { value: string; label: string }) {
   return (
     <div className="min-w-0 rounded-2xl border border-white/10 bg-white/[0.035] p-3">
@@ -535,10 +762,74 @@ function MiniStat({ value, label }: { value: string; label: string }) {
   );
 }
 
-function StatusPill({ label }: { label: string }) {
+function StatusPill({
+  label,
+  tone = "green",
+}: {
+  label: string;
+  tone?: "green" | "yellow" | "cyan" | "neutral";
+}) {
+  const classes = {
+    green: "border-emerald-300/20 bg-emerald-300/10 text-emerald-100",
+    yellow: "border-yellow-300/25 bg-yellow-300/10 text-yellow-100",
+    cyan: "border-cyan-300/25 bg-cyan-300/10 text-cyan-100",
+    neutral: "border-white/15 bg-white/10 text-white/80",
+  };
+
   return (
-    <span className="inline-flex w-fit items-center rounded-full border border-emerald-300/20 bg-emerald-300/10 px-3 py-1 text-xs font-medium text-emerald-100">
+    <span
+      className={`inline-flex w-fit items-center rounded-full border px-3 py-1 text-xs font-medium ${classes[tone]}`}
+    >
       {label}
     </span>
+  );
+}
+
+function CookieNotice() {
+  const [visible, setVisible] = useState(false);
+
+  useEffect(() => {
+    const accepted =
+      window.localStorage.getItem("aioengine-cookie-notice-accepted") === "true";
+
+    setVisible(!accepted);
+  }, []);
+
+  function acceptNotice() {
+    window.localStorage.setItem("aioengine-cookie-notice-accepted", "true");
+    setVisible(false);
+  }
+
+  if (!visible) {
+    return null;
+  }
+
+  return (
+    <div className="fixed bottom-4 left-4 right-4 z-50 mx-auto max-w-3xl rounded-3xl border border-white/10 bg-[#071b19]/95 p-4 shadow-2xl shadow-black/40 backdrop-blur sm:bottom-6 sm:p-5">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0">
+          <p className="text-sm font-semibold text-white">Cookie notice</p>
+          <p className="mt-2 text-sm leading-6 text-white/65">
+            aioengine.com uses a small local preference so this notice stays
+            hidden after you accept it. The public CLI does not require an
+            account, and no analytics cookies are required to use this site.
+          </p>
+          <a
+            href="#legal"
+            className="mt-2 inline-flex text-sm font-medium text-cyan-100 hover:text-white"
+          >
+            Read privacy and terms
+          </a>
+        </div>
+
+        <button
+          type="button"
+          onClick={acceptNotice}
+          className="inline-flex shrink-0 items-center justify-center rounded-full bg-gradient-to-r from-sky-400 via-cyan-300 to-emerald-300 px-5 py-3 text-sm font-semibold text-[#061211] transition hover:scale-[1.01]"
+        >
+          Accept
+        </button>
+      </div>
+    </div>
   );
 }
