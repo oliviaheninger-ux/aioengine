@@ -84,6 +84,18 @@ function runInit(options = {}) {
   const cursorPath = path.join(cursorDir, "aioengine.mdc");
   const snapshotsDir = path.join(aioengineDir, "snapshots");
   const snapshotsGitignorePath = path.join(snapshotsDir, ".gitignore");
+  const rootGitignorePath = ".gitignore";
+
+    if (!exists(rootGitignorePath, root)) {
+    fs.writeFileSync(
+      path.join(root, rootGitignorePath),
+      getDefaultRootGitignore(),
+      "utf8"
+    );
+    created.push(rootGitignorePath);
+  } else {
+    skipped.push(rootGitignorePath);
+  }
 
   const isGitRepo = isInsideGitRepo();
 
@@ -161,6 +173,7 @@ function runInit(options = {}) {
     "CLAUDE.md",
     ".cursor",
     options.github ? ".github" : null,
+    exists(".gitignore", root) ? ".gitignore" : null,
     exists("package.json", root) ? "package.json" : null,
   ].filter(Boolean);
 
@@ -379,6 +392,25 @@ function collectWorkflowContext(root) {
     });
 }
 
+function getDefaultRootGitignore() {
+  return [
+    "node_modules/",
+    ".next/",
+    "dist/",
+    "build/",
+    "coverage/",
+    ".turbo/",
+    ".vercel/",
+    "",
+    ".env",
+    ".env.*",
+    "!.env.example",
+    "",
+    "*.log",
+    "",
+  ].join("\n");
+}
+
 function getTrackedFiles(root) {
   return safeGit("ls-files", root)
     .split("\n")
@@ -453,6 +485,7 @@ function runCheck() {
   const hasCursorRules =
     exists(".cursor/rules", root) || exists(".cursorrules", root);
   const hasAioengineConfig = exists(".aioengine/config.json", root);
+  const hasSnapshotGitignore = exists(".aioengine/snapshots/.gitignore", root);
   const envFiles = findFiles(root, [
     ".env",
     ".env.local",
@@ -467,20 +500,41 @@ function runCheck() {
     exists("test", root) ||
     packageScriptIncludes(root, "test");
 
-  if (hasGit) passed.push("Git repo detected");
-  else warnings.push("No Git repo detected. aioengine works best inside a Git repo.");
+  let gitignoreCoversEnv = false;
 
-  if (hasPackageJson) passed.push("package.json detected");
-  else warnings.push("No package.json detected. Some checks may be limited.");
+  if (hasGit) {
+    passed.push("Git repo detected");
+  } else {
+    warnings.push("No Git repo detected. aioengine works best inside a Git repo.");
+  }
 
-  if (hasAioengineConfig) passed.push(".aioengine/config.json detected");
-  else warnings.push("No .aioengine/config.json found. Run aioengine init to create one.");
+  if (hasPackageJson) {
+    passed.push("package.json detected");
+  } else {
+    warnings.push("No package.json detected. Some checks may be limited.");
+  }
+
+  if (hasAioengineConfig) {
+    passed.push(".aioengine/config.json detected");
+  } else {
+    warnings.push("No .aioengine/config.json found. Run aioengine init to create one.");
+  }
+
+  if (hasSnapshotGitignore) {
+    passed.push("Snapshot ignore file detected");
+  } else {
+    warnings.push(
+      "Snapshot ignore file missing. Run aioengine init to keep local snapshots out of Git."
+    );
+  }
 
   if (hasGitignore) {
     passed.push(".gitignore detected");
 
     const gitignore = read(".gitignore", root);
-    if (!gitignore.includes(".env")) {
+    gitignoreCoversEnv = gitignore.includes(".env");
+
+    if (!gitignoreCoversEnv) {
       critical.push(".gitignore does not appear to include .env patterns.");
     }
   } else {
@@ -499,11 +553,17 @@ function runCheck() {
     passed.push("No common env files detected at repo root");
   }
 
-  if (hasClaude) passed.push("CLAUDE.md detected");
-  else warnings.push("No CLAUDE.md found. Claude Code may not have repo-specific boundaries.");
+  if (hasClaude) {
+    passed.push("CLAUDE.md detected");
+  } else {
+    warnings.push("No CLAUDE.md found. Claude Code may not have repo-specific boundaries.");
+  }
 
-  if (hasCursorRules) passed.push("Cursor rules detected");
-  else warnings.push("No Cursor rules detected. Cursor may not have project-specific boundaries.");
+  if (hasCursorRules) {
+    passed.push("Cursor rules detected");
+  } else {
+    warnings.push("No Cursor rules detected. Cursor may not have project-specific boundaries.");
+  }
 
   if (mcpFiles.length > 0) {
     warnings.push(
@@ -512,11 +572,18 @@ function runCheck() {
   } else {
     passed.push("No root MCP config detected");
   }
-    if (hasGithubActions) passed.push("GitHub Actions detected");
-  else warnings.push("No GitHub Actions folder detected. PR checks may not be configured yet.");
 
-  if (hasTests) passed.push("Tests detected");
-  else warnings.push("No obvious tests detected. AI-generated changes may be harder to verify.");
+  if (hasGithubActions) {
+    passed.push("GitHub Actions detected");
+  } else {
+    warnings.push("No GitHub Actions folder detected. PR checks may not be configured yet.");
+  }
+
+  if (hasTests) {
+    passed.push("Tests detected");
+  } else {
+    warnings.push("No obvious tests detected. AI-generated changes may be harder to verify.");
+  }
 
   const score = calculateScore(critical.length, warnings.length, passed.length);
 
@@ -527,13 +594,60 @@ function runCheck() {
   printSection("Warnings", warnings, "yellow");
   printSection("Passed", passed, "green");
 
-  console.log(pc.bold("Recommended next step:"));
+  console.log(pc.bold("Recommended next steps:"));
+
+  let step = 1;
+
+  if (!hasGit) {
+    console.log(`  ${step}. Initialize Git:`);
+    console.log(`     ${pc.cyan("git init")}`);
+    step += 1;
+  }
+
+  if (!hasGitignore) {
+    console.log(`  ${step}. Add a root .gitignore before committing generated files.`);
+    step += 1;
+  } else if (!gitignoreCoversEnv) {
+    console.log(`  ${step}. Add .env patterns to your root .gitignore.`);
+    step += 1;
+  }
 
   if (!hasAioengineConfig || !hasClaude || !hasCursorRules) {
-    console.log(`  Run ${pc.cyan("aioengine init")} to set up AI change control.`);
-  } else {
-    console.log(`  Run ${pc.cyan("aioengine review")} before committing AI-generated changes.`);
+    console.log(`  ${step}. Run ${pc.cyan("aioengine init")} to set up AI change control.`);
+    step += 1;
   }
+
+  if (!hasSnapshotGitignore) {
+    console.log(
+      `  ${step}. Run ${pc.cyan(
+        "aioengine init"
+      )} to create the snapshot ignore file.`
+    );
+    step += 1;
+  }
+
+  if (!hasGithubActions) {
+    console.log(
+      `  ${step}. For GitHub PR comments, run ${pc.cyan(
+        "aioengine init --github"
+      )}.`
+    );
+    step += 1;
+  }
+
+  console.log(`  ${step}. Before a larger AI edit, create a branch:`);
+  console.log(`     ${pc.cyan("git checkout -b ai-change")}`);
+  step += 1;
+
+  console.log(`  ${step}. Save a snapshot after committing setup files:`);
+  console.log(`     ${pc.cyan("aioengine snapshot --name checkpoint")}`);
+  step += 1;
+
+  console.log(`  ${step}. After AI changes code, run:`);
+  console.log(
+    `     ${pc.cyan('aioengine scope "describe the task" --profile ui')}`
+  );
+  console.log(`     ${pc.cyan("aioengine review")}`);
 }
 
 function runReview() {
