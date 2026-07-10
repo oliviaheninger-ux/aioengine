@@ -647,8 +647,10 @@ function runCheck() {
   console.log(
     `     ${pc.cyan('aioengine scope "describe the task" --profile ui')}`
   );
+  console.log(
+    `     ${pc.dim("Profiles: ui, docs, cli, ci, backend, marketing")}`
+  );
   console.log(`     ${pc.cyan("aioengine review")}`);
-}
 
 function runReview() {
   printHeader("aioengine Review");
