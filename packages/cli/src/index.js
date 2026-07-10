@@ -112,8 +112,8 @@ function runInit(options = {}) {
   }
 
   if (!exists(snapshotsDir, root)) {
-  fs.mkdirSync(path.join(root, snapshotsDir), { recursive: true });
-}
+    fs.mkdirSync(path.join(root, snapshotsDir), { recursive: true });
+  }
 
   if (!exists(snapshotsGitignorePath, root)) {
     fs.writeFileSync(
@@ -154,53 +154,49 @@ function runInit(options = {}) {
     );
   }
 
-console.log(pc.bold("Next steps:"));
-console.log(`  1. Review the files aioengine created`);
+  console.log(pc.bold("Before you start:"));
+  console.log(`  - Requires ${pc.cyan("Node.js/npm")} and ${pc.cyan("Git")}`);
 
-if (options.github) {
-  console.log(
-    `  2. Commit the setup files before running scope checks: ${pc.cyan(
-      "git add .aioengine CLAUDE.md .cursor .github && git commit -m \"Add aioengine guardrails\""
-    )}`
-  );
+  if (options.github) {
+    console.log(
+      `  - GitHub PR comments require a GitHub repo with Actions enabled`
+    );
+  }
+
+  console.log("");
+  console.log(pc.bold("Next steps:"));
+  console.log(`  1. Review the files aioengine created`);
+  console.log(`  2. Commit the setup files before running scope checks:`);
+
+  if (options.github) {
+    console.log(
+      `     ${pc.cyan("git add .aioengine CLAUDE.md .cursor .github")}`
+    );
+  } else {
+    console.log(`     ${pc.cyan("git add .aioengine CLAUDE.md .cursor")}`);
+  }
+
+  console.log(`     ${pc.cyan('git commit -m "Add aioengine guardrails"')}`);
   console.log(`  3. Run ${pc.cyan("aioengine check")}`);
-  console.log(
-    `  4. Before a larger AI edit, run ${pc.cyan(
-      "aioengine snapshot --name baseline"
-    )}`
-  );
+  console.log(`  4. Save a snapshot before a larger AI edit:`);
+  console.log(`     ${pc.cyan("aioengine snapshot --name before-ai-edit")}`);
   console.log(`  5. Make or review AI-generated changes`);
+  console.log(`  6. Check whether the changed files match the task:`);
   console.log(
-    `  6. Run ${pc.cyan(
-      'aioengine scope "describe the task" --profile ui'
-    )}`
+    `     ${pc.cyan('aioengine scope "describe the task here" --profile ui')}`
+  );
+  console.log(
+    `     ${pc.dim("Profiles: ui, docs, cli, ci, backend, marketing")}`
   );
   console.log(`  7. Run ${pc.cyan("aioengine review")} before committing`);
-  console.log(
-    `  8. Open a pull request to see the ${pc.cyan(
-      "aioengine CI report"
-    )} comment`
-  );
-} else {
-  console.log(
-    `  2. Commit the setup files before running scope checks: ${pc.cyan(
-      "git add .aioengine CLAUDE.md .cursor && git commit -m \"Add aioengine guardrails\""
-    )}`
-  );
-  console.log(`  3. Run ${pc.cyan("aioengine check")}`);
-  console.log(
-    `  4. Before a larger AI edit, run ${pc.cyan(
-      "aioengine snapshot --name baseline"
-    )}`
-  );
-  console.log(`  5. Make or review AI-generated changes`);
-  console.log(
-    `  6. Run ${pc.cyan(
-      'aioengine scope "describe the task" --profile ui'
-    )}`
-  );
-  console.log(`  7. Run ${pc.cyan("aioengine review")} before committing`);
-}
+
+  if (options.github) {
+    console.log(
+      `  8. Open a pull request to see the ${pc.cyan(
+        "aioengine CI report"
+      )} comment`
+    );
+  }
 }
 
 function runSnapshot(options = {}) {
