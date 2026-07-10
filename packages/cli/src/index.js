@@ -197,6 +197,10 @@ function runInit(options = {}) {
   console.log(`     ${pc.cyan("aioengine snapshot --name checkpoint")}`);
   step += 1;
 
+  console.log(`  ${step}. Create a branch for the AI-assisted change:`);
+  console.log(`     ${pc.cyan("git checkout -b describe-change")}`);
+  step += 1;
+
   console.log(`  ${step}. Make or review AI-generated changes`);
   step += 1;
 
