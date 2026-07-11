@@ -662,6 +662,32 @@ function runCheck() {
   console.log(`     ${pc.cyan("aioengine review")}`);
 }
 
+function isUnexpectedAioengineFile(filePath) {
+  const normalized = normalizePath(filePath);
+
+  if (!normalized.startsWith(".aioengine/")) {
+    return false;
+  }
+
+  const allowedFiles = new Set([
+    ".aioengine/config.json",
+    ".aioengine/snapshots/.gitignore",
+  ]);
+
+  if (allowedFiles.has(normalized)) {
+    return false;
+  }
+
+  if (
+    normalized.startsWith(".aioengine/snapshots/") &&
+    normalized.endsWith(".json")
+  ) {
+    return false;
+  }
+
+  return true;
+}
+
 function runReview() {
   printHeader("aioengine Review");
 
@@ -678,19 +704,43 @@ function runReview() {
     return;
   }
 
-  const riskyFiles = files.filter(isRiskyFile);
+  const riskyFiles = [];
   const reviewItems = [];
 
   if (files.length > 12) {
     reviewItems.push(`Large change set detected: ${files.length} files changed.`);
   }
 
+  files.forEach((file) => {
+    if (isRiskyFile(file)) {
+      riskyFiles.push({
+        file,
+        reason: "high-risk file",
+      });
+
+      return;
+    }
+
+    if (isUnexpectedAioengineFile(file)) {
+      riskyFiles.push({
+        file,
+        reason: "unexpected aioengine folder file",
+      });
+    }
+  });
+
   if (riskyFiles.length > 0) {
-    reviewItems.push(`High-risk files changed: ${riskyFiles.join(", ")}`);
+    reviewItems.push(
+      `Files needing review: ${riskyFiles
+        .map((item) => `${item.file} (${item.reason})`)
+        .join(", ")}`
+    );
   }
 
   const packageChanged = files.some((file) =>
-    ["package.json", "package-lock.json", "pnpm-lock.yaml", "yarn.lock"].includes(file)
+    ["package.json", "package-lock.json", "pnpm-lock.yaml", "yarn.lock"].includes(
+      normalizePath(file)
+    )
   );
 
   if (packageChanged) {
@@ -699,12 +749,22 @@ function runReview() {
     );
   }
 
-  console.log(`${pc.bold("Project:")} ${root}`);
+  console.log(`${pc.bold("Project:")} ${formatDisplayPath(root)}`);
   console.log(`${pc.bold("Changed files:")} ${files.length}\n`);
 
   files.forEach((file) => {
-    const marker = isRiskyFile(file) ? pc.red("✗") : pc.green("✓");
-    console.log(`  ${marker} ${file}`);
+    const riskyFile = riskyFiles.find((item) => item.file === file);
+
+    if (riskyFile) {
+      console.log(
+        `  ${pc.yellow("!")} ${formatDisplayPath(file)} ${pc.dim(
+          `— ${riskyFile.reason}`
+        )}`
+      );
+      return;
+    }
+
+    console.log(`  ${pc.green("✓")} ${formatDisplayPath(file)}`);
   });
 
   console.log("");
@@ -713,6 +773,38 @@ function runReview() {
     console.log(pc.green("No obvious high-risk changes detected."));
   } else {
     printSection("Review recommended", reviewItems, "yellow");
+  }
+
+  console.log("");
+  console.log(pc.bold("Next steps:"));
+
+  if (riskyFiles.length > 0) {
+    console.log("  1. Review the flagged files above and revert anything unrelated.");
+    console.log(
+      `  2. After fixing or confirming the changes, run ${pc.cyan(
+        "aioengine review"
+      )} again.`
+    );
+    console.log(
+      `  3. Generate a local Markdown report with ${pc.cyan(
+        "aioengine ci --report aioengine-report.md"
+      )}.`
+    );
+    console.log("  4. Open a pull request to get the aioengine report comment in GitHub.");
+    console.log(
+      "  5. If you have checked the changes and everything looks good, commit the focused diff."
+    );
+  } else {
+    console.log(
+      `  1. Generate a local Markdown report with ${pc.cyan(
+        "aioengine ci --report aioengine-report.md"
+      )}.`
+    );
+    console.log("  2. Open a pull request to get the aioengine report comment in GitHub.");
+    console.log(
+      "  3. If you have checked the changes and everything looks good, commit the focused diff:"
+    );
+    console.log(`     ${pc.cyan('git commit -m "Describe the focused change"')}`);
   }
 }
 
