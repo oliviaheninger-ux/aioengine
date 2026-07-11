@@ -126,6 +126,13 @@ const workflow = [
       "aioengine runs in GitHub Actions and posts the change-control report directly on the pull request. Use the command below to save the results as a Markdown report for local review or CI artifacts.",
     command: "npx -y aioengine@latest ci --report aioengine-report.md",
   },
+  {
+  step: "06",
+  title: "Commit with confidence",
+  description:
+    "Use the report to review the files that need attention, keep unrelated changes out, and commit the focused diff.",
+  command: 'git commit -m "Describe the focused change"',
+},
 ];
 
 const freeFeatures = [
@@ -482,7 +489,7 @@ export default function Home() {
             </p>
           </div>
 
-          <div className="mt-10 grid gap-4 md:grid-cols-2 lg:grid-cols-5">
+          <div className="mt-10 grid gap-4 md:grid-cols-2 lg:grid-cols-2">
             {workflow.map((item) => (
               <div
                 key={item.step}
