@@ -37,6 +37,12 @@ Then review risky files before committing:
 npx aioengine@latest review
 ```
 
+Save a local Markdown report for review:
+
+```bash
+npx aioengine@latest ci --report aioengine-report.md
+```
+
 Open a pull request. aioengine will run in GitHub Actions and comment directly on the PR with a change-control report.
 
 ## Commands
@@ -46,7 +52,7 @@ npx aioengine@latest check
 npx aioengine@latest init
 npx aioengine@latest init --github
 npx aioengine@latest snapshot
-npx aioengine@latest snapshot --name before-ai-edit
+npx aioengine@latest snapshot --name checkpoint
 npx aioengine@latest scope "example: update landing page headline"
 npx aioengine@latest scope "example: update landing page headline" --profile <profile>
 npx aioengine@latest review
@@ -272,13 +278,13 @@ Creates:
 You can also name a snapshot:
 
 ```bash
-npx aioengine@latest snapshot --name before-ai-edit
+npx aioengine@latest snapshot --name checkpoint
 ```
 
 Creates:
 
 ```txt
-.aioengine/snapshots/before-ai-edit.json
+.aioengine/snapshots/checkpoint.json
 ```
 
 Snapshots include:
@@ -449,16 +455,27 @@ CLAUDE.md
 npx aioengine@latest init --github
 npx aioengine@latest check
 
-# Save the current repo state before AI edits.
-npx aioengine@latest snapshot --name before-ai-edit
+# Recommended: create a branch before larger AI-assisted changes,
+# especially if you want GitHub PR comments.
+git checkout -b branch-name
 
-# Ask your AI coding tool to make a change. Recommended: create a branch before larger AI-assisted changes, especially if you want GitHub PR comments.
+# Save the current repo state before AI edits.
+npx aioengine@latest snapshot --name checkpoint
+
+# Ask your AI coding tool to make a focused change.
 
 # Check whether the changed files match the task.
 npx aioengine@latest scope "example: update landing page headline" --profile <profile>
 
 # Review risky files before committing.
 npx aioengine@latest review
+
+# Save a local Markdown report.
+npx aioengine@latest ci --report aioengine-report.md
+
+# If everything looks good, commit the focused diff.
+git add .
+git commit -m "Describe the focused change"
 
 # Open a pull request.
 # aioengine will run in GitHub Actions and comment with a report.

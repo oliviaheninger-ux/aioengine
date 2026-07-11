@@ -808,6 +808,14 @@ function runReview() {
   }
 }
 
+function printReportPath(reportPath) {
+  console.log("");
+  console.log(pc.bold("Report written:"));
+  console.log(`  ${pc.cyan(formatDisplayPath(reportPath))}`);
+  console.log("");
+  console.log(pc.dim("Tip: Reports are written relative to the project root."));
+}
+
 function runCi(options = {}) {
   printHeader("aioengine CI");
 
@@ -824,13 +832,13 @@ function runCi(options = {}) {
   const task = options.task || getCiTask();
   const files = getCiChangedFiles(root);
 
-  console.log(`${pc.dim("Project:")} ${root}`);
+  console.log(`${pc.dim("Project:")} ${formatDisplayPath(root)}`);
 
-  if (isGitHubActions()) {
-    console.log(`${pc.dim("Environment:")} GitHub Actions`);
-  } else {
-    console.log(`${pc.dim("Environment:")} Local / unknown CI`);
-  }
+  const environment = isGitHubActions()
+    ? "GitHub Actions"
+    : "Local / unknown CI";
+
+  console.log(`${pc.dim("Environment:")} ${environment}`);
 
   if (task) {
     console.log(`${pc.dim("Task:")} ${task}`);
@@ -840,19 +848,38 @@ function runCi(options = {}) {
     );
   }
 
-  if (files.length === 0) {
-    console.log(pc.green("\nNo changed files found."));
-    return;
-  }
-
   const profile = inferTaskProfile(task, options.profile);
   const riskyFiles = files.filter(isRiskyFile);
   const outOfScopeFiles = profile
     ? files.filter((file) => isProbablyOutOfScope(file, profile))
     : [];
 
+  const hasScopeDrift = outOfScopeFiles.length > 0;
+  const hasRiskyFiles = riskyFiles.length > 0;
+
   if (profile) {
     console.log(`${pc.dim("Detected task type:")} ${profile.label}`);
+  }
+
+  if (files.length === 0) {
+    console.log(pc.green("\nNo changed files found."));
+
+    if (options.report) {
+      const reportPath = writeCiReport(root, options.report, {
+        task,
+        profile,
+        files,
+        riskyFiles,
+        outOfScopeFiles,
+        hasScopeDrift,
+        hasRiskyFiles,
+        environment,
+      });
+
+      printReportPath(reportPath);
+    }
+
+    return;
   }
 
   console.log(`${pc.dim("Changed files:")} ${files.length}\n`);
@@ -862,19 +889,24 @@ function runCi(options = {}) {
     const outOfScope = outOfScopeFiles.includes(file);
 
     if (outOfScope) {
-      console.log(`  ${pc.red("✗")} ${file} ${pc.red("— possible scope drift")}`);
+      console.log(
+        `  ${pc.red("✗")} ${formatDisplayPath(file)} ${pc.red(
+          "— possible scope drift"
+        )}`
+      );
     } else if (risky) {
-      console.log(`  ${pc.yellow("!")} ${file} ${pc.yellow("— review carefully")}`);
+      console.log(
+        `  ${pc.yellow("!")} ${formatDisplayPath(file)} ${pc.yellow(
+          "— review carefully"
+        )}`
+      );
     } else {
-      console.log(`  ${pc.green("✓")} ${file}`);
+      console.log(`  ${pc.green("✓")} ${formatDisplayPath(file)}`);
     }
   }
 
-  const hasScopeDrift = outOfScopeFiles.length > 0;
-  const hasRiskyFiles = riskyFiles.length > 0;
-
   if (options.report) {
-    writeCiReport(root, options.report, {
+    const reportPath = writeCiReport(root, options.report, {
       task,
       profile,
       files,
@@ -882,8 +914,10 @@ function runCi(options = {}) {
       outOfScopeFiles,
       hasScopeDrift,
       hasRiskyFiles,
-      environment: isGitHubActions() ? "GitHub Actions" : "Local / unknown CI",
+      environment,
     });
+
+    printReportPath(reportPath);
   }
 
   if (hasScopeDrift) {
@@ -892,7 +926,8 @@ function runCi(options = {}) {
     printSection(
       "Possible scope drift",
       outOfScopeFiles.map(
-        (file) => `Possible out-of-scope file changed: ${file}`
+        (file) =>
+          `Possible out-of-scope file changed: ${formatDisplayPath(file)}`
       ),
       "warning"
     );
@@ -900,14 +935,16 @@ function runCi(options = {}) {
     if (hasRiskyFiles) {
       printSection(
         "Risky files",
-        riskyFiles.map((file) => `High-risk file changed: ${file}`),
+        riskyFiles.map(
+          (file) => `High-risk file changed: ${formatDisplayPath(file)}`
+        ),
         "warning"
       );
     }
 
     console.log(
       pc.dim(
-        "\nRecommendation: Review these changes before merging. aioengine is failing this CI check because possible scope drift was detected."
+        "\nRecommendation: Review the flagged files before merging. aioengine is failing this CI check because possible scope drift was detected."
       )
     );
 
@@ -918,7 +955,7 @@ function runCi(options = {}) {
   if (hasRiskyFiles) {
     console.log(
       pc.yellow(
-        "\nRisky files were changed. aioengine is allowing this check to pass, but these files should receive extra human review."
+        "\nRisky files were changed. aioengine is allowing this check to pass, but these files should receive extra review."
       )
     );
     return;
@@ -1899,7 +1936,7 @@ function writeCiReport(root, reportPath, data) {
   fs.mkdirSync(outputDir, { recursive: true });
   fs.writeFileSync(outputPath, buildCiReport(data), "utf8");
 
-  console.log(`${pc.dim("Report:")} ${outputPath}`);
+  return outputPath;
 }
 
 function buildCiReport({
